@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Authentication System</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Canvas for animated background -->
+    <canvas id="canvas"></canvas>
+    
+    <!-- Main Container -->
+    <div class="container">
+        
+        <!-- Login View -->
+        <div id="loginView" class="view active">
+            <div class="glass-card">
+                <h1>Welcome Back</h1>
+                <p class="subtitle">Sign in to your account</p>
+                
+                <form id="loginForm" class="form">
+                    <div class="input-group">
+                        <input type="email" id="loginEmail" placeholder="Email" required>
+                    </div>
+                    <div class="input-group">
+                        <input type="password" id="loginPassword" placeholder="Password" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Sign In</button>
+                </form>
+                
+                <p class="toggle-text" style="color: white">
+                    Don't have an account? 
+                    <a href="#" id="showRegister">Sign up</a>
+                </p>
+                
+                <div id="loginError" class="error-message"></div>
+            </div>
+        </div>
+        
+        <!-- Register View -->
+        <div id="registerView" class="view">
+            <div class="glass-card">
+                <h1>Create Account</h1>
+                <p class="subtitle">Join us today</p>
+                
+                <form id="registerForm" class="form">
+                    <div class="input-group">
+                        <input type="text" id="regFirstName" placeholder="First Name" required>
+                    </div>
+                    <div class="input-group">
+                        <input type="text" id="regLastName" placeholder="Last Name" required>
+                    </div>
+                    <div class="input-group">
+                        <input type="email" id="regEmail" placeholder="Email" required>
+                    </div>
+                    <div class="input-group">
+                        <input type="tel" id="regPhone" placeholder="Phone Number">
+                    </div>
+                    <div class="input-group">
+                        <input type="password" id="regPassword" placeholder="Password" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Create Account</button>
+                </form>
+                
+                <p class="toggle-text" style="color: white">
+                    Already have an account? 
+                    <a href="#" id="showLogin">Sign in</a>
+                </p>
+                
+                <div id="registerError" class="error-message"></div>
+            </div>
+        </div>
+        
+        <!-- Dashboard View -->
+        <div id="dashboardView" class="view">
+            <div class="glass-card dashboard">
+                <h1>Dashboard</h1>
+                <div id="userInfo" class="user-info"></div>
+                <button id="logoutBtn" class="btn btn-secondary">Logout</button>
+            </div>
+        </div>
+        
+    </div>
+    
+    <script src="app.js"></script>
+</body>
+</html>
