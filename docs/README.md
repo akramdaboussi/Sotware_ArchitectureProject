@@ -26,6 +26,9 @@
 | [ARCHITECTURE.md](ARCHITECTURE.md) | System design, layers, and flow diagrams | 10 min |
 | [MONITORING.md](MONITORING.md) | Logging, debugging, and troubleshooting | 8 min |
 | [EXERCISES.md](EXERCISES.md) | 8 hands-on activities to master the system | 20 min |
+| [DATABASE.md](DATABASE.md) | Database schema, setup, and queries | 8 min |
+| [MIGRATION_v2.0.md](MIGRATION_v2.0.md) | Migration guide: in-memory to database | 7 min |
+| [RBAC.md](RBAC.md) | Role-based access control guide | 7 min |
 
 #### Features Included
 - ✅ User registration (email, password, profile)
