@@ -1,23 +1,23 @@
 # 🏗️ Architecture Quick Guide
 
-> **TL;DR**: A custom authentication system built with pure Java - no JWT libraries, no database (yet!). Learn by doing.
+> **TL;DR**: A custom authentication system built with Spring Boot + H2 Database + JPA. Custom tokens, no JWT libraries. Learn by doing.
 
 ---
 
 ## 🎯 What Is This?
 
-A **3-layer authentication API** that handles user registration, login, and token management:
+A **4-layer authentication API** that handles user registration, login, token management, and role-based access:
 
 ```
-Browser → Controller → Service → Storage
-  ↓          ↓           ↓          ↓
- UI      HTTP/JSON   Business   In-Memory
-                      Logic       Data
+Browser → Controller → Service → Repository → Database
+  ↓          ↓           ↓           ↓            ↓
+ UI      HTTP/JSON   Business     JPA/H2      Persistent
+                      Logic                    Storage
 ```
 
 ---
 
-## 🧱 The 3 Layers Explained
+## 🧱 The 4 Layers Explained
 
 ### Layer 1: **Controller** (HTTP Interface)
 **Job**: Talk to the outside world  
@@ -52,21 +52,26 @@ public String login(String email, String password) {
 }
 ```
 
-### Layer 3: **Storage** (Data Keeper)
+### Layer 3: **Repository** (Data Access)
 **Job**: Store and find stuff  
-**Files**: `InMemoryStorage.java`, models (`User`, `Token`, `Role`)  
-**Does**: Save/retrieve data, thread safety  
+**Files**: `UserRepository.java`, `TokenRepository.java`, `RoleRepository.java` + models (`User`, `Token`, `Role`)  
+**Does**: Save/retrieve data via JPA, database queries  
 **Never Does**: Validation, business rules
 
 ```java
-// Storage = The vault
-private final Map<String, User> users = new ConcurrentHashMap<>();
-
-public void saveUser(User user) {
-    user.setId(++userIdCounter);
-    users.put(user.getEmail(), user);
+// Repository = Database access via JPA
+@Repository
+public interface UserRepository extends JpaRepository<User, Long> {
+    Optional<User> findByEmail(String email);
+    boolean existsByEmail(String email);
 }
 ```
+
+### Layer 4: **Database** (H2 Persistent Storage)
+**Job**: Persist data between restarts  
+**Files**: `application.properties`, `./data/authdb`  
+**Does**: Store users, tokens, roles in tables  
+**Console**: Accessible via `/h2-console`
 
 ---
 
@@ -122,8 +127,10 @@ MToxNzM4Nzc5MjQ1MDAwOkt4OW1QMm5RN3JUOHZXMXlaM2FCNGNENWVGNmdINw==
 |--------|------|-----------|
 | **Custom tokens** (not JWT) | Educational - see how it works | Less secure |
 | **SHA-256** (not BCrypt) | Built into Java | Less secure |
-| **In-memory** (not database) | Zero configuration | Lost on restart |
+| **H2 database** | Persistent storage, easy setup | Not production-ready |
+| **JPA/Hibernate** | Standard ORM, auto schema | Learning curve |
 | **Layered architecture** | Clean, testable, maintainable | More files |
+| **Role-based access** | Admin/User separation | More complexity |
 
 ---
 
@@ -141,12 +148,15 @@ sequenceDiagram
     User->>Controller: POST /login
     Controller->>AuthService: login(email, pwd)
     AuthService->>UserService: findByEmail()
-    UserService->>Storage: Get user
-    Storage-->>UserService: User
+    UserService->>UserRepository: findByEmail()
+    UserRepository->>Database: SELECT user
+    Database-->>UserRepository: User
+    UserRepository-->>UserService: User
     AuthService->>UserService: verifyPassword()
     UserService-->>AuthService: ✅ Valid
     AuthService->>TokenService: generateToken()
-    TokenService->>Storage: Save token
+    TokenService->>TokenRepository: Save token
+    TokenRepository->>Database: INSERT token
     TokenService-->>AuthService: token
     AuthService-->>Controller: token
     Controller-->>User: 200 OK {token}
@@ -192,16 +202,19 @@ public ResponseEntity login() {
 }
 ```
 
-### Thread Safety = Why ConcurrentHashMap?
+### Thread Safety = JPA/Hibernate Handles It!
 
 ```java
-// Regular HashMap:
+// Old way with HashMap:
 Map<String, User> users = new HashMap<>();
 // ❌ Two users register at same time = CRASH!
 
-// ConcurrentHashMap:
-Map<String, User> users = new ConcurrentHashMap<>();
-// ✅ Thread-safe = Multiple requests = No problem!
+// Now with JPA:
+@Repository
+public interface UserRepository extends JpaRepository<User, Long> {}
+// ✅ Database handles concurrency!
+// ✅ Transactions = ACID compliance
+// ✅ Connection pooling = Performance
 ```
 
 ---
@@ -256,24 +269,79 @@ Response: 200 OK
 }
 ```
 
+### Admin: Get All Users (requires ROLE_ADMIN)
+```bash
+GET http://localhost:8080/api/admin/users
+Headers:
+  Authorization: Bearer <admin_token>
+
+Response: 200 OK
+[
+  {
+    "id": 1,
+    "email": "admin@example.com",
+    "firstName": "Admin",
+    "roles": ["ROLE_USER", "ROLE_ADMIN"]
+  }
+]
+```
+
+### Admin: Add Role to User
+```bash
+POST http://localhost:8080/api/admin/add-role
+Headers:
+  Authorization: Bearer <admin_token>
+{
+  "email": "john@example.com",
+  "role": "ROLE_MODERATOR"
+}
+
+Response: 200 OK
+{
+  "message": "Role added successfully"
+}
+```
+
+### H2 Database Console
+```
+URL: http://localhost:8080/h2-console
+JDBC URL: jdbc:h2:file:./data/authdb
+Username: sa
+Password: (empty)
+```
+
 ---
 
 ## 📁 File Structure
 
 ```
 src/main/java/com/softwarearchi/archi/
+├── ArchiApplication.java        ← Main entry point
 ├── controllers/
-│   └── AuthController.java      ← HTTP endpoints
+│   ├── AuthController.java      ← Auth HTTP endpoints
+│   └── AdminController.java     ← Admin HTTP endpoints
 ├── services/
 │   ├── AuthService.java         ← Authentication logic
 │   ├── UserService.java         ← User management
 │   └── TokenService.java        ← Token operations
-├── storage/
-│   └── InMemoryStorage.java     ← Data storage
+├── repository/
+│   ├── UserRepository.java      ← User JPA repository
+│   ├── TokenRepository.java     ← Token JPA repository
+│   └── RoleRepository.java      ← Role JPA repository
+├── config/
+│   ├── SecurityConfig.java      ← Spring Security config
+│   └── DataInitializer.java     ← Creates default roles
 └── models/
     ├── User.java                ← User entity
     ├── Token.java               ← Token entity
     └── Role.java                ← User roles
+
+src/main/resources/
+├── application.properties       ← H2 database config
+└── static/                      ← Frontend (HTML/JS/CSS)
+
+data/
+└── authdb.mv.db                 ← H2 database file
 ```
 
 ---

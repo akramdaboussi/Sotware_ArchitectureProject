@@ -9,15 +9,17 @@
 | Tag | Layer | What It Means |
 |-----|-------|---------------|
 | `[CONTROLLER]` | HTTP Layer | Request received/sent |
+| `[CONTROLLER-ADMIN]` | Admin HTTP | Admin operations |
 | `[SERVICE-AUTH]` | Auth Logic | Register/login/logout |
 | `[SERVICE-USER]` | User Logic | Password hashing/verification |
 | `[SERVICE-TOKEN]` | Token Logic | Token create/validate |
+| `[INIT]` | Startup | DataInitializer creating roles |
 
 ### Log Level Guide
-- **DEBUG** 🔍 = Detailed steps (password hashing, token checks)
-- **INFO** ℹ️ = Normal operations (login success, user created)
-- **WARN** ⚠️ = Problems (failed login, invalid token)
-- **ERROR** 🚨 = Critical issues (system failures)
+- **DEBUG** = Detailed steps (password hashing, token checks)
+- **INFO** = Normal operations (login success, user created)
+- **WARN** = Problems (failed login, invalid token)
+- **ERROR** = Critical issues (system failures)
 
 ---
 
@@ -27,43 +29,43 @@
 ```
 INFO  [CONTROLLER] Registration request received
 DEBUG [CONTROLLER] Registration data: email=john@example.com
-INFO  [SERVICE-AUTH] 📝 Starting registration for email: john@example.com
+INFO  [SERVICE-AUTH] Starting registration for email: john@example.com
 DEBUG [SERVICE-AUTH] Checking if email exists
 INFO  [SERVICE-USER] Creating user: john@example.com
 DEBUG [SERVICE-USER] Hashing password (SHA-256)
-INFO  [SERVICE-USER] ✅ User saved with ID: 1
-INFO  [SERVICE-TOKEN] 🎫 Generating new token for user ID: 1
-INFO  [SERVICE-TOKEN] ✅ Token generated, expires at: 2026-02-06T18:51:47
-INFO  [CONTROLLER] ✅ Registration successful
+INFO  [SERVICE-USER] User saved with ID: 1
+INFO  [SERVICE-TOKEN] Generating new token for user ID: 1
+INFO  [SERVICE-TOKEN] Token generated, expires at: 2026-02-06T18:51:47
+INFO  [CONTROLLER] Registration successful
 ```
 
 ### ✅ Successful Login
 ```
 INFO  [CONTROLLER] Login request received
-INFO  [SERVICE-AUTH] 🔐 Login attempt for email: john@example.com
+INFO  [SERVICE-AUTH] Login attempt for email: john@example.com
 DEBUG [SERVICE-AUTH] User found: ID=1
 DEBUG [SERVICE-USER] Verifying password
-DEBUG [SERVICE-USER] ✅ Password verification successful
-INFO  [SERVICE-TOKEN] 🎫 Generating new token
-INFO  [CONTROLLER] ✅ Login successful
+DEBUG [SERVICE-USER] Password verification successful
+INFO  [SERVICE-TOKEN] Generating new token
+INFO  [CONTROLLER] Login successful
 ```
 
 ### ❌ Failed Login (Wrong Password)
 ```
 INFO  [CONTROLLER] Login request received
-INFO  [SERVICE-AUTH] 🔐 Login attempt for email: john@example.com
+INFO  [SERVICE-AUTH] Login attempt for email: john@example.com
 DEBUG [SERVICE-USER] Verifying password
-DEBUG [SERVICE-USER] ❌ Password verification failed
-WARN  [SERVICE-AUTH] ❌ Login failed: Invalid password
-WARN  [CONTROLLER] ❌ Login failed
+DEBUG [SERVICE-USER] Password verification failed
+WARN  [SERVICE-AUTH] Login failed: Invalid password
+WARN  [CONTROLLER] Login failed
 ```
 
 ### ❌ Failed Login (User Not Found)
 ```
 INFO  [CONTROLLER] Login request received
-INFO  [SERVICE-AUTH] 🔐 Login attempt for email: wrong@example.com
-WARN  [SERVICE-AUTH] ❌ Login failed: User not found
-WARN  [CONTROLLER] ❌ Login failed
+INFO  [SERVICE-AUTH] Login attempt for email: wrong@example.com
+WARN  [SERVICE-AUTH] Login failed: User not found
+WARN  [CONTROLLER] Login failed
 ```
 
 ---
@@ -118,12 +120,12 @@ When breakpoint hits, hover over variables:
 
 **What to check in logs:**
 ```
-WARN [SERVICE-AUTH] ❌ Login failed: User not found
+WARN [SERVICE-AUTH] Login failed: User not found
 ```
 → **Solution**: User doesn't exist. Register first!
 
 ```
-DEBUG [SERVICE-USER] ❌ Password verification failed
+DEBUG [SERVICE-USER] Password verification failed
 ```
 → **Solution**: Wrong password. Check what you're typing!
 
@@ -139,13 +141,13 @@ boolean matches = hashedInput.equals(hashedPassword);
 
 **What to check in logs:**
 ```
-WARN [SERVICE-TOKEN] ❌ Invalid or expired token
+WARN [SERVICE-TOKEN] Invalid or expired token
 ```
 
 **Possible causes:**
 - Token expired (>24 hours old)
 - You logged out (token revoked)
-- Server restarted (in-memory storage cleared)
+- Token doesn't exist in database
 
 **Debug with breakpoint:**
 ```java
@@ -160,7 +162,7 @@ if (token != null && token.isValid()) {
 
 **What to check in logs:**
 ```
-WARN [SERVICE-AUTH] ❌ Registration failed: Email already exists
+WARN [SERVICE-AUTH] Registration failed: Email already exists
 ```
 
 **Solutions:**
@@ -173,7 +175,7 @@ WARN [SERVICE-AUTH] ❌ Registration failed: Email already exists
 
 **Scenario**: Login not working
 
-1. **Check logs** → See `WARN [SERVICE-USER] ❌ Password verification failed`
+1. **Check logs** → See `WARN [SERVICE-USER] Password verification failed`
 2. **Set breakpoint** → `UserService.verifyPassword()`
 3. **Send login request** → Breakpoint triggers
 4. **Inspect variables**:
@@ -202,27 +204,11 @@ logging.level.com.softwarearchi.archi=WARN
 
 ---
 
-## 🎨 Emoji Legend
-
-| Emoji | Meaning |
-|-------|---------|
-| 📝 | Registration |
-| 🔐 | Login |
-| 🚪 | Logout |
-| 🔍 | Fetching user |
-| 🎫 | Token operation |
-| ✅ | Success |
-| ❌ | Failure |
-| ⚠️ | Warning |
-
----
-
 ## 💡 Pro Tips
 
 1. **Always check logs first** before debugging
-2. **Look for emojis** to quickly see what's happening
-3. **Set breakpoints** at decision points (if/else)
-4. **Inspect variables** when password/token operations fail
-5. **Use DEBUG level** when learning, INFO for normal use
+2. **Set breakpoints** at decision points (if/else)
+3. **Inspect variables** when password/token operations fail
+3. **Use DEBUG level** when learning, INFO for normal use
 
-**Next**: Try the hands-on exercises in EXERCISES.md! 🚀
+**Next**: Try the hands-on exercises in EXERCISES.md! 
