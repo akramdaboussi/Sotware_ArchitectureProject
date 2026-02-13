@@ -1,7 +1,9 @@
 package com.softwarearchi.archi.services;
 
+import com.softwarearchi.archi.models.Role;
 import com.softwarearchi.archi.models.User;
-import com.softwarearchi.archi.storage.InMemoryStorage;
+import com.softwarearchi.archi.repository.RoleRepository;
+import com.softwarearchi.archi.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -10,23 +12,26 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Base64;
+import java.util.List;
 
 /**
  * Service for user management operations.
- * Handles user creation, retrieval, and password hashing.
+ * Handles user creation, retrieval, password hashing, and role management.
  */
 @Service
 public class UserService {
 
     private static final Logger logger = LoggerFactory.getLogger(UserService.class);
-    private final InMemoryStorage storage;
+    private final UserRepository userRepository;
+    private final RoleRepository roleRepository;
 
-    public UserService(InMemoryStorage storage) {
-        this.storage = storage;
+    public UserService(UserRepository userRepository, RoleRepository roleRepository) {
+        this.userRepository = userRepository;
+        this.roleRepository = roleRepository;
     }
 
     /**
-     * Create and save a new user
+     * Create and save a new user (password is hashed before saving)
      */
     public User createUser(User user) {
         logger.info("[SERVICE-USER] Creating user: {}", user.getEmail());
@@ -34,28 +39,96 @@ public class UserService {
         // Hash the password before saving
         logger.debug("[SERVICE-USER] Hashing password for user: {}", user.getEmail());
         user.setPassword(hashPassword(user.getPassword()));
-
-        storage.saveUser(user);
-        logger.info("[SERVICE-USER] ✅ User saved with ID: {}", user.getId());
-        return user;
+        User savedUser = userRepository.save(user);
+        logger.info("[SERVICE-USER] User saved with ID: {}", savedUser.getId());
+        return savedUser;
     }
 
     /**
-     * Find user by email
+     * Find user by email. Returns null if not found.
      */
     public User findByEmail(String email) {
-        return storage.findUserByEmail(email);
+        logger.debug("[SERVICE-USER] Finding user by email: {}", email);
+        return userRepository.findByEmail(email).orElse(null);
     }
 
     /**
-     * Check if email already exists
+     * Find user by ID. Returns null if not found.
+     */
+    public User findById(Long id) {
+        logger.debug("[SERVICE-USER] Finding user by ID: {}", id);
+        return userRepository.findById(id).orElse(null);  
+    }
+
+    /**
+     * Check if a user exists with the given email.
      */
     public boolean existsByEmail(String email) {
-        return storage.existsByEmail(email);
+        return userRepository.existsByEmail(email);
     }
 
     /**
-     * Hash password using SHA-256
+     * Retrieve all users from the database.
+     */
+    public List<User> findAllUsers() {
+        logger.debug("[SERVICE-USER] Finding all users");
+        return userRepository.findAll();
+    }
+
+    // --- Role management ---
+
+    /**
+     * Add a role to a user by email and role name.
+     * Throws if user or role not found.
+     */
+    public void addRoleToUser(String email, String roleName) {
+        logger.info("[SERVICE-USER] Adding role {} to user {}", roleName, email);
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found: " + email));
+
+        Role role = roleRepository.findByName(roleName)
+                .orElseThrow(() -> new RuntimeException("Role not found: " + roleName));
+
+        user.getRoles().add(role);
+        userRepository.save(user);
+
+        logger.info("[SERVICE-USER] Role {} added to user {}", roleName, email);
+    }
+
+    /**
+     * Remove a role from a user by email and role name.
+     * Throws if user not found.
+     */
+    public void removeRoleFromUser(String email, String roleName) {
+        logger.info("[SERVICE-USER] Removing role {} from user {}", roleName, email);
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found: " + email));
+
+        user.getRoles().removeIf(role -> role.getName().equals(roleName));
+        userRepository.save(user);
+
+        logger.info("[SERVICE-USER] Role {} removed from user {}", roleName, email);
+    }
+
+    /**
+     * Check if a user has a specific role.
+     */
+    public boolean hasRole(User user, String roleName) {
+        return user.getRoles().stream()
+                .anyMatch(role -> role.getName().equals(roleName));
+    }
+
+    /**
+     * Check if a user has the admin role.
+     */
+    public boolean isAdmin(User user) {
+        return hasRole(user, "ROLE_ADMIN");
+    }
+
+    /**
+     * Hash a password using SHA-256 and Base64 encoding.
      */
     public String hashPassword(String password) {
         logger.debug("[SERVICE-USER] Hashing password (SHA-256)");
@@ -64,22 +137,21 @@ public class UserService {
             byte[] hash = digest.digest(password.getBytes(StandardCharsets.UTF_8));
             return Base64.getEncoder().encodeToString(hash);
         } catch (NoSuchAlgorithmException e) {
-            logger.error("[SERVICE-USER] ❌ Error hashing password: {}", e.getMessage());
             throw new RuntimeException("Error hashing password", e);
         }
     }
 
     /**
-     * Verify password matches the stored hash
+     * Verify if a raw password matches the stored hash.
      */
     public boolean verifyPassword(String rawPassword, String hashedPassword) {
         logger.debug("[SERVICE-USER] Verifying password");
         String hashedInput = hashPassword(rawPassword);
         boolean matches = hashedInput.equals(hashedPassword);
         if (matches) {
-            logger.debug("[SERVICE-USER] ✅ Password verification successful");
+            logger.debug("[SERVICE-USER] Password verification successful");
         } else {
-            logger.debug("[SERVICE-USER] ❌ Password verification failed");
+            logger.debug("[SERVICE-USER] Password verification failed");
         }
         return matches;
     }
