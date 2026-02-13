@@ -1,64 +1,85 @@
 package com.softwarearchi.archi.models;
 
 import java.time.LocalDateTime;
+import jakarta.persistence.*;
 
+/**
+ * Authentication token entity.
+ * Stores Base64-encoded tokens with 24h expiration.
+ */
+@Entity
+@Table(name = "tokens")
 public class Token {
-
+    
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    private String token; // Valeur du token
-    private TokenType tokenType; // Type de token : ACCESS, REFRESH, etc.
-    private boolean revoked = false; // Indique si le token a été révoqué
-    private boolean expired = false; // Indique si le token a expiré
-    private LocalDateTime createdAt; // Date de création du token
-    private LocalDateTime expiresAt; // Date d'expiration du token
-    private Long userId; // Propriétaire du token
+    
+    /** Base64-encoded token value */
+    @Column(unique = true, nullable = false, length = 500)
+    private String token;
+    
+    /** Token type (currently only ACCESS) */
+    @Column(name = "token_type", nullable = false)
+    private String tokenType = "ACCESS";
+    
+    /** True if token was manually revoked (logout) */
+    @Column(nullable = false)
+    private boolean revoked = false;
+    
+    /** True if token has expired */
+    @Column(nullable = false)
+    private boolean expired = false;
+    
+    @Column(name = "created_at")
+    private LocalDateTime createdAt;
+    
+    @Column(name = "expires_at")
+    private LocalDateTime expiresAt;
+    
+    /** Owner of this token */
+    @Column(name = "user_id", nullable = false)
+    private Long userId;
 
-    // Constructeurs
+    /** Default constructor for JPA */
     public Token() {}
 
-    // Création d'un token avec les attributs essentiels
-    public Token(String token, TokenType tokenType, Long userId, LocalDateTime expiresAt) {
+    /** Create token with essential attributes */
+    public Token(String token, Long userId, LocalDateTime expiresAt) {
         this.token = token;
-        this.tokenType = tokenType;
+        this.tokenType = "ACCESS";
         this.userId = userId;
         this.expiresAt = expiresAt;
         this.createdAt = LocalDateTime.now();
     }
 
-    // Vérifie si le token est valide (non révoqué et non expiré)
+    /** @return true if token is not revoked, not expired, and within validity period */
     public boolean isValid() {
         return !revoked && !expired && expiresAt.isAfter(LocalDateTime.now());
     }
 
-    /** @return Identifiant unique du token */
+    // Getters & Setters
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 
-    /** @return Valeur du token */ 
     public String getToken() { return token; }
     public void setToken(String token) { this.token = token; }
 
-    /** @return Type de token : ACCESS, REFRESH, etc. */ 
-    public TokenType getTokenType() { return tokenType; }
-    public void setTokenType(TokenType tokenType) { this.tokenType = tokenType; }
+    public String getTokenType() { return tokenType; }
+    public void setTokenType(String tokenType) { this.tokenType = tokenType; }
 
-    /** @return Indique si le token a été révoqué */ 
     public boolean isRevoked() { return revoked; }
     public void setRevoked(boolean revoked) { this.revoked = revoked; }
 
-    /** @return Indique si le token a expiré */ 
     public boolean isExpired() { return expired; }
     public void setExpired(boolean expired) { this.expired = expired; }
 
-    /** @return Date de création du token */
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
 
-    /** @return Date d'expiration du token */
     public LocalDateTime getExpiresAt() { return expiresAt; }
     public void setExpiresAt(LocalDateTime expiresAt) { this.expiresAt = expiresAt; }
 
-    /** @return ID du propriétaire du token */
     public Long getUserId() { return userId; }
     public void setUserId(Long userId) { this.userId = userId; }
 }

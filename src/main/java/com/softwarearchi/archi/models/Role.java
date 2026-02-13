@@ -1,35 +1,48 @@
 package com.softwarearchi.archi.models;
 
+import jakarta.persistence.*;
+
+/**
+ * Role entity for RBAC (Role-Based Access Control).
+ * Defines user permissions: ROLE_USER, ROLE_ADMIN, ROLE_MODERATOR.
+ */
+@Entity
+@Table(name = "roles")
 public class Role {
-
+    
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    private String name; // ROLE_USER, ROLE_ADMIN, ROLE_MODERATOR
-    private String description; // Description du rôle
+    
+    /** Role name (e.g., ROLE_ADMIN) - must be unique */
+    @Column(unique = true, nullable = false)
+    private String name;
+    
+    /** Optional role description */
+    private String description;
 
-    // Constructeurs
+    /** Default constructor for JPA */
     public Role() {}
 
-    // Création d'un rôle avec seulement le nom
+    /** Create role with name only */
     public Role(String name) {
         this.name = name;
     }
 
-    // Création d'un rôle avec tous les attributs
+    /** Create role with all attributes */
     public Role(Long id, String name, String description) {
         this.id = id;
         this.name = name;
         this.description = description;
     }
 
-    /** @return Identifiant du rôle */ 
+    // Getters & Setters
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 
-    /** @return Nom du rôle */ 
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
 
-    /** @return Description du rôle */ 
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
 }
