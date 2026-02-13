@@ -68,7 +68,7 @@ public class AuthController {
             return ResponseEntity.status(HttpStatus.CREATED).body(response);
 
         } catch (RuntimeException e) {
-            logger.error("[CONTROLLER] ❌ Registration failed: {}", e.getMessage());
+            logger.error("[CONTROLLER] Registration failed: {}", e.getMessage());
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(createErrorResponse(e.getMessage()));
         }
@@ -108,7 +108,7 @@ public class AuthController {
             return ResponseEntity.ok(response);
 
         } catch (RuntimeException e) {
-            logger.warn("[CONTROLLER] ❌ Login failed: {}", e.getMessage());
+            logger.warn("[CONTROLLER] Login failed: {}", e.getMessage());
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(createErrorResponse(e.getMessage()));
         }
@@ -128,7 +128,7 @@ public class AuthController {
             logger.debug("[CONTROLLER] Token extracted for logout");
 
             authService.logout(token);
-            logger.info("[CONTROLLER] ✅ Logout successful");
+            logger.info("[CONTROLLER] Logout successful");
 
             Map<String, Object> response = new HashMap<>();
             response.put("message", "Logout successful");
@@ -154,7 +154,7 @@ public class AuthController {
             logger.debug("[CONTROLLER] Token extracted, fetching user info");
 
             User user = authService.getUserByToken(token);
-            logger.info("[CONTROLLER] ✅ User info retrieved: email={}", user.getEmail());
+            logger.info("[CONTROLLER] User info retrieved: email={}", user.getEmail());
 
             // Create user response (don't send password!)
             Map<String, Object> response = new HashMap<>();
