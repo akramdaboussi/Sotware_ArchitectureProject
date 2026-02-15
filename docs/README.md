@@ -15,10 +15,10 @@
 
 ## 📖 Documentation by Version
 
-### **v1.0.0** - Basic Authentication System ✅ Current
+### **v1.0.0** - JWT Authentication System ✅ Current
 *Released: February 2026*
 
-**Status**: ✅ Complete - Spring Boot + H2 Database + JPA authentication
+**Status**: ✅ Complete - Spring Boot + H2 Database + JPA authentication + JWT stateless authentication
 
 #### Core Documentation
 | Document | Description | Time to Read |
@@ -33,9 +33,9 @@
 #### Features Included
 - ✅ User registration (email, password, profile)
 - ✅ User login with password verification
-- ✅ Custom token generation (Base64-encoded)
-- ✅ Token-based authentication
-- ✅ Logout (token revocation)
+- ✅ JWT token generation (stateless)
+- ✅ JWT-based authentication
+- ✅ Logout (client-side: remove JWT)
 - ✅ H2 persistent database storage
 - ✅ JPA/Hibernate ORM
 - ✅ Role-based access control (ROLE_USER, ROLE_ADMIN, ROLE_MODERATOR)
@@ -49,9 +49,9 @@
 ```
 # Authentication
 POST   /api/auth/register    - Create new user account
-POST   /api/auth/login       - Authenticate and get token
-POST   /api/auth/logout      - Revoke token
-GET    /api/auth/me          - Get current user info
+POST   /api/auth/login       - Authenticate and get JWT token
+POST   /api/auth/logout      - Logout (client-side only, just remove JWT)
+GET    /api/auth/me          - Get current user info (JWT required)
 
 # Admin (requires ROLE_ADMIN)
 GET    /api/admin/users      - List all users
@@ -61,11 +61,11 @@ POST   /api/admin/remove-role - Remove role from user
 
 #### Technical Stack
 - **Framework**: Spring Boot 3.4.1
-- **Language**: Java (Custom auth, no third-party auth libraries)
+- **Language**: Java (Spring Security + JWT)
 - **Database**: H2 (persistent file: `./data/authdb`)
 - **ORM**: JPA/Hibernate
 - **Security**: SHA-256 password hashing
-- **Tokens**: Custom Base64 format (24h expiry)
+- **Tokens**: JWT (24h expiry, not stored in DB)
 - **Logging**: SLF4J with layered tags
 - **Console**: H2 accessible at `/h2-console`
 
@@ -97,7 +97,7 @@ POST   /api/admin/remove-role - Remove role from user
 - ✅ JPA/Hibernate integration (DONE)
 - [ ] PostgreSQL/MySQL support
 - [ ] Database migrations (Flyway/Liquibase)
-- ✅ Persistent token storage (DONE)
+- ❌ Persistent token storage (removed)
 - [ ] User session management
 - [ ] Database connection pooling
 
@@ -111,7 +111,7 @@ POST   /api/admin/remove-role - Remove role from user
 *Target: TBD*
 
 #### Planned Features
-- [ ] JWT tokens (replace custom format)
+- ✅ JWT tokens (replace custom format)
 - [ ] Refresh token flow
 - [ ] Email verification
 - [ ] Password reset flow
@@ -120,7 +120,7 @@ POST   /api/admin/remove-role - Remove role from user
 - [ ] Two-factor authentication (2FA)
 
 #### Planned Documentation
-- [ ] `JWT.md` - JWT implementation guide
+- [ ] `JWT.md` - JWT implementation guide (see code for usage)
 - [ ] `OAUTH.md` - OAuth2 integration
 - ✅ `RBAC.md` - Role-based permissions
 - [ ] `2FA.md` - Two-factor authentication setup

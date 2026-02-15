@@ -22,21 +22,11 @@
 | name        | String (unique)| Role name (e.g. ROLE_USER) |
 | description | String         | Role description           |
 
-#### tokens
-| Column       | Type           | Description                |
-|-------------|----------------|----------------------------|
-| id          | Long (PK)      | Token ID (auto-generated)  |
-| token       | String (unique)| Base64-encoded token value |
-| token_type  | String         | Token type (ACCESS)        |
-| revoked     | Boolean        | Token revoked (logout)     |
-| expired     | Boolean        | Token expired              |
-| created_at  | LocalDateTime  | Creation timestamp         |
-| expires_at  | LocalDateTime  | Expiry timestamp           |
-| user_id     | Long (FK)      | Owner (User) ID            |
+
+> **Note:** Since the migration to JWT, tokens are no longer stored in the database. JWTs are stateless and only exist on the client side.
 
 ### Relationships
 - **User <-> Role**: Many-to-Many (user_roles join table)
-- **User <-> Token**: One-to-Many (user_id foreign key in tokens)
 
 ### Setup Instructions
 
@@ -58,6 +48,7 @@
 SELECT * FROM users;
 -- List all roles
 SELECT * FROM roles;
+-- (No more tokens table: JWTs are not stored in DB)
 -- List all tokens
 SELECT * FROM tokens;
 -- Show user-role assignments

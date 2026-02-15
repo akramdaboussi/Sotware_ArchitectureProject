@@ -47,15 +47,31 @@ RBAC (Role-Based Access Control) is a security paradigm that restricts system ac
 
 ---
 
-## Enforcing RBAC in Code
 
-- **Controllers:**
+## JWT & Role Transmission
+
+All authentication is stateless and handled via JWT (JSON Web Token):
+
+- After login, the backend returns a JWT containing the user's roles in its payload (claim `roles`).
+- The frontend stores the JWT (e.g., in localStorage) and sends it in the `Authorization: Bearer <jwt>` header for all protected API calls.
+- The backend extracts the JWT, validates it, et utilise les rôles du payload pour appliquer les règles RBAC.
+
+**Example JWT payload:**
+```json
+{
+  "sub": "john@example.com",
+  "roles": ["ROLE_USER", "ROLE_ADMIN"],
+  "exp": 1738779245
+}
+```
+
+**Controllers:**
   - Admin endpoints are annotated to require `ROLE_ADMIN`.
   - Moderator endpoints (if any) require `ROLE_MODERATOR` or `ROLE_ADMIN`.
-- **Service Layer:**
+**Service Layer:**
   - Business logic checks user roles before performing sensitive actions.
-- **SecurityConfig:**
-  - Configures endpoint access rules using Spring Security.
+**SecurityConfig:**
+  - Configures endpoint access rules using Spring Security and JWT filter.
 
 ---
 

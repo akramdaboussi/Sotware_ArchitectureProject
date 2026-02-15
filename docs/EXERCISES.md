@@ -187,7 +187,7 @@ SELECT * FROM ROLES;
 
 ✅ **Architecture**: Controllers → Services → Repositories → Database (H2)  
 ✅ **JPA**: Auto-generated repositories, no manual SQL  
-✅ **Security**: Hashed passwords (SHA-256), Base64 tokens, RBAC  
+✅ **Security**: Hashed passwords (SHA-256), JWT tokens (stateless, signed), RBAC  
 ✅ **Roles**: ROLE_USER, ROLE_ADMIN, ROLE_MODERATOR + custom  
 ✅ **H2 Console**: Explore data in real-time  
 ✅ **Debugging**: Layered logs + VS Code breakpoints  
@@ -197,15 +197,15 @@ SELECT * FROM ROLES;
 ## 🚀 Bonus Challenges (optional)
 
 **Intermediate Level** (10 min each):
-1. **Change token expiry**: Switch from 24h to 1h in `TokenService`
+1. **Change JWT expiry**: Change the expiration time in `JwtUtil`
 2. **Validate password**: Reject passwords < 8 characters in `AuthService`
 3. **Stats endpoint**: Create `GET /api/admin/stats` returning user count by role
 
 **Advanced Level** (30+ min):
 - Migrate from H2 to PostgreSQL
-- Implement refresh tokens
+- Implement refresh tokens for JWT
 - Add email verification
-- Switch to JWT tokens
+- Add server-side JWT revocation (blacklist)
 
 ---
 

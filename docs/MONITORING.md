@@ -12,13 +12,13 @@
 | `[CONTROLLER-ADMIN]` | Admin HTTP | Admin operations |
 | `[SERVICE-AUTH]` | Auth Logic | Register/login/logout |
 | `[SERVICE-USER]` | User Logic | Password hashing/verification |
-| `[SERVICE-TOKEN]` | Token Logic | Token create/validate |
+| `[SERVICE-AUTH]` | JWT Logic | JWT create/validate |
 | `[INIT]` | Startup | DataInitializer creating roles |
 
 ### Log Level Guide
-- **DEBUG** = Detailed steps (password hashing, token checks)
+- **DEBUG** = Detailed steps (password hashing, JWT checks)
 - **INFO** = Normal operations (login success, user created)
-- **WARN** = Problems (failed login, invalid token)
+- **WARN** = Problems (failed login, invalid JWT)
 - **ERROR** = Critical issues (system failures)
 
 ---
@@ -34,8 +34,8 @@ DEBUG [SERVICE-AUTH] Checking if email exists
 INFO  [SERVICE-USER] Creating user: john@example.com
 DEBUG [SERVICE-USER] Hashing password (SHA-256)
 INFO  [SERVICE-USER] User saved with ID: 1
-INFO  [SERVICE-TOKEN] Generating new token for user ID: 1
-INFO  [SERVICE-TOKEN] Token generated, expires at: 2026-02-06T18:51:47
+INFO  [SERVICE-AUTH] Generating new JWT for user ID: 1
+INFO  [SERVICE-AUTH] JWT generated, expires at: 2026-02-06T18:51:47
 INFO  [CONTROLLER] Registration successful
 ```
 
@@ -46,7 +46,7 @@ INFO  [SERVICE-AUTH] Login attempt for email: john@example.com
 DEBUG [SERVICE-AUTH] User found: ID=1
 DEBUG [SERVICE-USER] Verifying password
 DEBUG [SERVICE-USER] Password verification successful
-INFO  [SERVICE-TOKEN] Generating new token
+INFO  [SERVICE-AUTH] Generating new JWT
 INFO  [CONTROLLER] Login successful
 ```
 
@@ -141,7 +141,7 @@ boolean matches = hashedInput.equals(hashedPassword);
 
 **What to check in logs:**
 ```
-WARN [SERVICE-TOKEN] Invalid or expired token
+WARN [SERVICE-AUTH] Invalid or expired JWT
 ```
 
 **Possible causes:**

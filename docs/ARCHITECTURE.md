@@ -1,12 +1,12 @@
 # 🏗️ Architecture Quick Guide
 
-> **TL;DR**: A custom authentication system built with Spring Boot + H2 Database + JPA. Custom tokens, no JWT libraries. Learn by doing.
+> **TL;DR**: A stateless authentication system built with Spring Boot + H2 Database + JPA. JWT tokens, no server-side session. Learn by doing.
 
 ---
 
 ## 🎯 What Is This?
 
-A **4-layer authentication API** that handles user registration, login, token management, and role-based access:
+A **4-layer authentication API** that handles user registration, login, JWT management, and role-based access:
 
 ```
 Browser → Controller → Service → Repository → Database
@@ -30,15 +30,15 @@ Browser → Controller → Service → Repository → Database
 @PostMapping("/api/auth/login")
 public ResponseEntity login(@RequestBody Map request) {
     String email = request.get("email");
-    String token = authService.login(email, password); // ← Call service
-    return ResponseEntity.ok(Map.of("token", token));
+    String jwt = authService.login(email, password); // ← Call service
+    return ResponseEntity.ok(Map.of("token", jwt));
 }
 ```
 
 ### Layer 2: **Service** (Business Brain)
 **Job**: Make decisions  
-**Files**: `AuthService`, `UserService`, `TokenService`  
-**Does**: Validate, hash passwords, generate tokens  
+**Files**: `AuthService`, `UserService`  
+**Does**: Validate, hash passwords, call JWT utility  
 **Never Does**: HTTP stuff, know about JSON
 
 ```java
@@ -48,13 +48,13 @@ public String login(String email, String password) {
     if (!verifyPassword(password, user.getPassword())) {  // Check
         throw new RuntimeException("Invalid credentials");
     }
-    return tokenService.generateToken(user);         // Create token
+    return jwtUtil.generateToken(user);         // Create JWT (via utils)
 }
 ```
 
 ### Layer 3: **Repository** (Data Access)
 **Job**: Store and find stuff  
-**Files**: `UserRepository.java`, `TokenRepository.java`, `RoleRepository.java` + models (`User`, `Token`, `Role`)  
+**Files**: `UserRepository.java`, `RoleRepository.java` + models (`User`, `Role`)  
 **Does**: Save/retrieve data via JPA, database queries  
 **Never Does**: Validation, business rules
 
@@ -70,7 +70,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
 ### Layer 4: **Database** (H2 Persistent Storage)
 **Job**: Persist data between restarts  
 **Files**: `application.properties`, `./data/authdb`  
-**Does**: Store users, tokens, roles in tables  
+**Does**: Store users, roles in tables  
 **Console**: Accessible via `/h2-console`
 
 ---
@@ -82,8 +82,8 @@ public interface UserRepository extends JpaRepository<User, Long> {
 graph LR
     A[1. POST<br/>/register] --> B[2. Hash<br/>password]
     B --> C[3. Save<br/>user]
-    C --> D[4. Create<br/>token]
-    D --> E[5. Return<br/>201 + token]
+    C --> D[4. Create<br/>JWT]
+    D --> E[5. Return<br/>201 + JWT]
     
     style A fill:#818cf8
     style B fill:#f59e0b
@@ -97,7 +97,7 @@ graph LR
 graph LR
     A[1. POST<br/>/login] --> B[2. Find<br/>user]
     B --> C[3. Verify<br/>password]
-    C --> D[4. Generate<br/>token]
+    C --> D[4. Generate<br/>JWT]
     
     style A fill:#818cf8
     style B fill:#10b981
@@ -105,19 +105,12 @@ graph LR
     style D fill:#ec4899
 ```
 
-### Token: Our Custom Format
-```
-Format: userId:timestamp:randomString
-Example: 1:1738779245000:Kx9mP2nQ7rT8vW1yZ3aB4cD5eF6gH7
+### Token: JWT Format
 
-Encoded (Base64):
-MToxNzM4Nzc5MjQ1MDAwOkt4OW1QMm5RN3JUOHZXMXlaM2FCNGNENWVGNmdINw==
-```
+JWT (JSON Web Token) is a signed, stateless token containing user info and expiry. It is not stored in the database.
 
-**Why custom?**
-- ✅ No external dependencies (pure Java)
-- ✅ Learn how tokens actually work
-- ⚠️ Not production-secure (use JWT in real apps)
+- ✅ Learn how JWT works
+- ✅ Production-ready (stateless, secure)
 
 ---
 
@@ -125,7 +118,7 @@ MToxNzM4Nzc5MjQ1MDAwOkt4OW1QMm5RN3JUOHZXMXlaM2FCNGNENWVGNmdINw==
 
 | Choice | Why? | Trade-off |
 |--------|------|-----------|
-| **Custom tokens** (not JWT) | Educational - see how it works | Less secure |
+| **JWT tokens** (stateless) | Modern, secure, scalable | No server-side revocation |
 | **SHA-256** (not BCrypt) | Built into Java | Less secure |
 | **H2 database** | Persistent storage, easy setup | Not production-ready |
 | **JPA/Hibernate** | Standard ORM, auto schema | Learning curve |
@@ -142,7 +135,7 @@ sequenceDiagram
     participant Controller
     participant AuthService
     participant UserService
-    participant TokenService
+    participant JwtUtil (utils)
     participant Storage
     
     User->>Controller: POST /login
@@ -154,10 +147,8 @@ sequenceDiagram
     UserRepository-->>UserService: User
     AuthService->>UserService: verifyPassword()
     UserService-->>AuthService: ✅ Valid
-    AuthService->>TokenService: generateToken()
-    TokenService->>TokenRepository: Save token
-    TokenRepository->>Database: INSERT token
-    TokenService-->>AuthService: token
+    AuthService->>JwtUtil: generateToken()
+    JwtUtil-->>AuthService: JWT
     AuthService-->>Controller: token
     Controller-->>User: 200 OK {token}
 ```
@@ -169,7 +160,7 @@ sequenceDiagram
 | Feature | Status | Production Need |
 |---------|--------|-----------------|
 | Password hashing | ✅ SHA-256 | ⚠️ Upgrade to BCrypt |
-| Token security | ✅ Base64 | ⚠️ Use JWT + signatures |
+| Token security | ✅ JWT + signatures | ✅ Production-ready |
 | HTTPS | ❌ Missing | ✅ Required |
 | Rate limiting | ❌ Missing | ✅ Prevent brute force |
 | Refresh tokens | ❌ Missing | ✅ Better UX |
@@ -322,18 +313,17 @@ src/main/java/com/softwarearchi/archi/
 │   └── AdminController.java     ← Admin HTTP endpoints
 ├── services/
 │   ├── AuthService.java         ← Authentication logic
-│   ├── UserService.java         ← User management
-│   └── TokenService.java        ← Token operations
+│   └── UserService.java         ← User management
+├── utils/
+│   └── JwtUtil.java             ← JWT utility (token generation/validation)
 ├── repository/
 │   ├── UserRepository.java      ← User JPA repository
-│   ├── TokenRepository.java     ← Token JPA repository
 │   └── RoleRepository.java      ← Role JPA repository
 ├── config/
 │   ├── SecurityConfig.java      ← Spring Security config
 │   └── DataInitializer.java     ← Creates default roles
 └── models/
     ├── User.java                ← User entity
-    ├── Token.java               ← Token entity
     └── Role.java                ← User roles
 
 src/main/resources/
@@ -351,7 +341,7 @@ data/
 1. **Controller** = Handles HTTP, no logic
 2. **Service** = Business logic, no HTTP
 3. **Storage** = Data only, no logic
-4. **Tokens** = Our custom format (learn first, use JWT later)
-5. **Security** = Educational level (upgrade for production)
+4. **Tokens** = JWT (stateless, secure, no DB storage)
+5. **Security** = JWT-based, stateless, production-ready
 
 **Next**: Check out MONITORING.md to see how logging works! 📊
