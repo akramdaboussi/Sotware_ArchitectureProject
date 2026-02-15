@@ -6,6 +6,10 @@ import com.softwarearchi.archi.repository.RoleRepository;
 import com.softwarearchi.archi.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.stereotype.Service;
 
 import java.nio.charset.StandardCharsets;
@@ -19,7 +23,20 @@ import java.util.List;
  * Handles user creation, retrieval, password hashing, and role management.
  */
 @Service
-public class UserService {
+public class UserService implements UserDetailsService {
+    @Override
+    public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
+        User user = findByEmail(email);
+        if (user == null) {
+            throw new UsernameNotFoundException("User not found: " + email);
+        }
+        return org.springframework.security.core.userdetails.User.builder()
+                .username(user.getEmail())
+                .password(user.getPassword())
+                .authorities(user.getRoles().stream().map(r -> new SimpleGrantedAuthority(r.getName())).toList())
+                .accountLocked(!user.isEnabled())
+                .build();
+    }
 
     private static final Logger logger = LoggerFactory.getLogger(UserService.class);
     private final UserRepository userRepository;
@@ -37,7 +54,6 @@ public class UserService {
         logger.info("[SERVICE-USER] Creating user: {}", user.getEmail());
 
         // Hash the password before saving
-        logger.debug("[SERVICE-USER] Hashing password for user: {}", user.getEmail());
         user.setPassword(hashPassword(user.getPassword()));
         User savedUser = userRepository.save(user);
         logger.info("[SERVICE-USER] User saved with ID: {}", savedUser.getId());
@@ -131,6 +147,7 @@ public class UserService {
      * Hash a password using SHA-256 and Base64 encoding.
      */
     public String hashPassword(String password) {
+        // Hashing password (SHA-256)
         logger.debug("[SERVICE-USER] Hashing password (SHA-256)");
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");

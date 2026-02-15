@@ -1,5 +1,7 @@
 package com.softwarearchi.archi.services;
 
+import com.softwarearchi.archi.utils.JwtUtil;
+
 import com.softwarearchi.archi.models.User;
 import com.softwarearchi.archi.repository.UserRepository;
 import com.softwarearchi.archi.models.Role;
@@ -10,6 +12,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.HashSet;
 import java.util.Set;
+import java.util.Map;
 
 /**
  * Authentication service - handles login, registration, and logout.
@@ -20,28 +23,25 @@ public class AuthService {
 
     private static final Logger logger = LoggerFactory.getLogger(AuthService.class);
     private final UserService userService;
-    private final TokenService tokenService;
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
+    private final JwtUtil jwtUtil;
 
-    public AuthService(UserService userService, TokenService tokenService, UserRepository userRepository, RoleRepository roleRepository) {
+    public AuthService(UserService userService, UserRepository userRepository, RoleRepository roleRepository, JwtUtil jwtUtil) {
         this.userService = userService;
-        this.tokenService = tokenService;
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
+        this.jwtUtil = jwtUtil;
     }
 
     /**
-     * Register a new user
-     * 
-     * @return Generated authentication token
+     * Registers a new user in the system.
+     * @return The generated authentication JWT token.
      */
-    public String register(String firstName, String lastName, String email,
+        public String register(String firstName, String lastName, String email,
             String password, String phoneNumber) {
         logger.info("[SERVICE-AUTH] Starting registration for email: {}", email);
-
-        // Check if user already exists
-        logger.debug("[SERVICE-AUTH] Checking if email exists: {}", email);
+        logger.debug("[SERVICE-AUTH] Checking if email exists");
         if (userService.existsByEmail(email)) {
             logger.warn("[SERVICE-AUTH] Registration failed: Email {} already exists", email);
             throw new RuntimeException("User with email " + email + " already exists");
@@ -49,8 +49,8 @@ public class AuthService {
 
         Role userRole = getOrCreateRole("ROLE_USER", "Standard user");
 
-        // Create new user
-        logger.debug("[SERVICE-AUTH] Creating new user object");
+        // Create a new user entity
+        logger.info("[SERVICE-USER] Creating user: {}", email);
         User user = new User();
         user.setFirstName(firstName);
         user.setLastName(lastName);
@@ -63,85 +63,82 @@ public class AuthService {
         roles.add(userRole);
         user.setRoles(roles);
 
-        // Save user (une seule fois, avec le rôle)
+        // Save the user with assigned role(s)
         userRepository.save(user);
-        logger.info("[SERVICE-AUTH] User created with ID: {}", user.getId());
-        logger.info("[SERVICE-AUTH] Welcome aboard, {}!", firstName);
-        
-        // Generate and return token
-        String token = tokenService.generateToken(user);
-        logger.info("[SERVICE-AUTH] Registration complete for email: {}", email);
+        logger.info("[SERVICE-USER] User saved with ID: {}", user.getId());
+        // Generate JWT for the new user
+        logger.info("[SERVICE-AUTH] Generating new JWT for user ID: {}", user.getId());
+        String token = jwtUtil.generateToken(
+            user.getEmail(),
+            Map.of(
+                "userId", user.getId(),
+                "roles", user.getRoles().stream().map(Role::getName).toArray()
+            )
+        );
+        java.util.Date expiresAt = jwtUtil.extractExpiration(token);
+        logger.info("[SERVICE-AUTH] JWT generated, expires at: {}", expiresAt);
         return token;
     }
 
     /**
-     * Login user with credentials
-     * 
-     * @return Authentication token if successful
+     * Authenticates a user with provided credentials.
+     * @return The authentication JWT token if successful.
      */
     public String login(String email, String password) {
-        logger.info("[SERVICE-AUTH] Login attempt for email: {}", email);
-
-        // Find user
-        logger.debug("[SERVICE-AUTH] Looking up user by email");
+        // Login attempt is logged in AuthController
         User user = userService.findByEmail(email);
         if (user == null) {
-            logger.warn("[SERVICE-AUTH] Login failed: User not found for email: {}", email);
+            logger.warn("[SERVICE-AUTH] Login failed: User not found");
             throw new RuntimeException("Invalid email or password");
         }
         logger.debug("[SERVICE-AUTH] User found: ID={}", user.getId());
-
-        // Verify password
-        logger.debug("[SERVICE-AUTH] Verifying password");
         if (!userService.verifyPassword(password, user.getPassword())) {
-            logger.warn("[SERVICE-AUTH] Login failed: Invalid password for email: {}", email);
+            logger.warn("[SERVICE-AUTH] Login failed: Invalid password");
             throw new RuntimeException("Invalid email or password");
         }
-        logger.debug("[SERVICE-AUTH] Password verified successfully");
-
-        // Check if user is enabled
         if (!user.isEnabled()) {
             logger.warn("[SERVICE-AUTH] Login failed: Account disabled for email: {}", email);
             throw new RuntimeException("Account is disabled");
         }
-
-        // Generate and return token
-        logger.info("[SERVICE-AUTH] Generating authentication token");
-        String token = tokenService.generateToken(user);
-        logger.info("[SERVICE-AUTH] Login successful for email: {}", email);
+        logger.info("[SERVICE-AUTH] Generating new JWT");
+        String token = jwtUtil.generateToken(
+            user.getEmail(),
+            Map.of(
+                "userId", user.getId(),
+                "roles", user.getRoles().stream().map(Role::getName).toArray()
+            )
+        );
+        // Login successful log should be in AuthController
         return token;
     }
 
     /**
-     * Logout user by revoking token
+     * Logs out the user. (For JWT, nothing to do server-side; just remove token client-side)
      */
     public void logout(String token) {
-        logger.info("[SERVICE-AUTH] Processing logout request");
-        tokenService.revokeToken(token);
-        logger.info("[SERVICE-AUTH] Logout successful");
+        logger.info("[SERVICE-AUTH] Logout: nothing to do server-side with JWT");
     }
 
     /**
-     * Get user by authentication token
+     * Retrieves a user by authentication token (JWT).
      */
     public User getUserByToken(String token) {
-        Long userId = tokenService.getUserIdFromToken(token);
-        if (userId == null) {
+        try {
+            String email = jwtUtil.extractUsername(token);
+            User user = userService.findByEmail(email);
+            if (user == null) {
+                logger.warn("[SERVICE-AUTH] User not found for email: {}", email);
+                throw new RuntimeException("User not found");
+            }
+            logger.info("[SERVICE-AUTH] User info retrieved for: {}", user.getEmail());
+            return user;
+        } catch (Exception e) {
             logger.warn("[SERVICE-AUTH] Invalid or expired token");
             throw new RuntimeException("Invalid or expired token");
         }
-
-        User user = userRepository.findById(userId).orElse(null);
-        if (user == null) {
-            logger.warn("[SERVICE-AUTH] User not found for ID: {}", userId);
-            throw new RuntimeException("User not found");
-        }
-
-        logger.info("[SERVICE-AUTH] User info retrieved for: {}", user.getEmail());
-        return user;
     }
     
-    // Helper method to get existing role or create it if it doesn't exist
+    // Helper method to get an existing role or create it if it does not exist
     private Role getOrCreateRole(String name, String description) {
         return roleRepository.findByName(name)
                 .orElseGet(() -> {

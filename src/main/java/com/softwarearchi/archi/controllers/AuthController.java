@@ -58,6 +58,8 @@ public class AuthController {
             // Call service to register
             String token = authService.register(firstName, lastName, email, password, phoneNumber);
 
+            logger.info("[CONTROLLER] Registration successful");
+
             // Return success response
             Map<String, Object> response = new HashMap<>();
             response.put("token", token);
@@ -99,6 +101,8 @@ public class AuthController {
             // Authenticate
             String token = authService.login(email, password);
 
+            logger.info("[CONTROLLER] Login successful");
+
             // Return token
             Map<String, Object> response = new HashMap<>();
             response.put("token", token);
@@ -116,7 +120,7 @@ public class AuthController {
 
     /**
      * POST /api/auth/logout
-     * Logout user (revoke token)
+     * Logout user (JWT: just remove token client-side)
      * Header: Authorization: Bearer <token>
      */
     @PostMapping("/logout")
@@ -156,7 +160,7 @@ public class AuthController {
             User user = authService.getUserByToken(token);
             logger.info("[CONTROLLER] User info retrieved: email={}", user.getEmail());
 
-            // Create user response (don't send password!)
+            // Create user response (do not send password!)
             Map<String, Object> response = new HashMap<>();
             response.put("id", user.getId());
             response.put("firstName", user.getFirstName());

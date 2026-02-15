@@ -38,11 +38,9 @@ public class AdminController {
     private User verifyAdmin(String authHeader) {
         String token = extractToken(authHeader);
         User user = authService.getUserByToken(token);
-        
         if (!userService.isAdmin(user)) {
             throw new RuntimeException("Access denied: Admin role required");
         }
-        
         return user;
     }
 
