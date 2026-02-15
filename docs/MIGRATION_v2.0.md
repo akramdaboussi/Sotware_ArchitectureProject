@@ -1,4 +1,4 @@
-## Migrating from In-Memory to Database (H2/JPA)
+## Migrating from In-Memory to Database (H2/JPA) & JWT
 
 ### Why migrate?
 - Persistent storage (data survives restarts)
@@ -10,10 +10,12 @@
 1. **Remove InMemoryStorage**
    - Delete `InMemoryStorage.java` and all usages in services/controllers.
 2. **Add JPA Entities and Repositories**
-   - Create `User`, `Role`, `Token` entities with JPA annotations.
-   - Create `UserRepository`, `RoleRepository`, `TokenRepository` interfaces.
+   - Create `User`, `Role` entities with JPA annotations.
+   - Create `UserRepository`, `RoleRepository` interfaces.
+   - Remove `Token` entity and repository (JWT is now stateless and not stored in DB).
 3. **Update Services**
-   - Refactor `UserService`, `AuthService`, `TokenService` to use repositories instead of in-memory maps.
+   - Refactor `UserService`, `AuthService` to use repositories instead of in-memory maps.
+   - Remove all code related to token storage and revocation.
 4. **Configure H2 Database**
    - In `application.properties`:
      - `spring.datasource.url=jdbc:h2:file:./data/authdb`
@@ -21,9 +23,14 @@
      - `spring.datasource.username=sa`
      - `spring.datasource.password=` (empty)
      - `spring.jpa.hibernate.ddl-auto=update`
-5. **Test with H2 Console**
+     - `spring.jpa.show-sql=false` (optional, disables SQL logs)
+5. **Migrate to JWT Authentication**
+   - Implement JWT logic in `utils/JwtUtil.java`.
+   - Update `AuthService` and `SecurityConfig` to use JWT for authentication and authorization.
+   - Remove session and token storage logic from controllers/services.
+6. **Test with H2 Console**
    - Start app, go to `/h2-console`, check tables and data.
-6. **(Optional) Prepare for PostgreSQL/MySQL**
+7. **(Optional) Prepare for PostgreSQL/MySQL**
    - Add JDBC driver to `pom.xml`
    - Update datasource URL and credentials
    - Plan migration scripts (Flyway/Liquibase)
