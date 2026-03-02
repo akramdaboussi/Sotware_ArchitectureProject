@@ -7,6 +7,7 @@
     --secondary: #ec4899;
     --success: #10b981;
     --error: #ef4444;
+    --warning: #f59e0b;
     --bg-dark: #0f172a;
     --bg-darker: #020617;
     --glass-bg: rgba(255, 255, 255, 0.05);
@@ -239,6 +240,116 @@ input:focus {
 .user-info strong {
     color: var(--primary);
     margin-right: 0.5rem;
+}
+
+/* ========================================
+   EMAIL VERIFICATION STYLES
+   ======================================== */
+
+/* Big email icon */
+.email-icon {
+    font-size: 4rem;
+    margin-bottom: 1rem;
+    animation: bounceIn 0.6s ease;
+}
+
+/* Highlighted email address */
+.highlight-email {
+    font-size: 1.15rem;
+    font-weight: 600;
+    color: #c4b5fd;
+    background: rgba(139, 92, 246, 0.15);
+    padding: 0.5rem 1.25rem;
+    border-radius: 8px;
+    display: inline-block;
+    margin: 0.75rem 0 1.5rem 0;
+}
+
+/* Info box */
+.info-box {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 1.25rem;
+    text-align: center;
+}
+
+.info-box p {
+    color: var(--text-muted);
+    font-size: 0.95rem;
+    line-height: 1.6;
+}
+
+.small-text {
+    font-size: 0.85rem !important;
+    color: #64748b !important;
+    margin-top: 0.25rem;
+}
+
+.mailhog-link {
+    color: var(--primary);
+    text-decoration: none;
+    font-weight: 600;
+    transition: color 0.3s ease;
+}
+
+.mailhog-link:hover {
+    color: var(--secondary);
+}
+
+/* Verification result icon */
+.verify-icon {
+    font-size: 5rem;
+    margin-bottom: 1rem;
+    animation: bounceIn 0.6s ease;
+}
+
+.verify-icon.success {
+    filter: drop-shadow(0 0 20px rgba(16, 185, 129, 0.5));
+}
+
+.verify-icon.error {
+    filter: drop-shadow(0 0 20px rgba(239, 68, 68, 0.5));
+}
+
+@keyframes bounceIn {
+    0% {
+        transform: scale(0.3);
+        opacity: 0;
+    }
+    50% {
+        transform: scale(1.1);
+    }
+    70% {
+        transform: scale(0.9);
+    }
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+/* Verification badge on dashboard */
+.badge {
+    display: inline-block;
+    padding: 0.2rem 0.6rem;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    vertical-align: middle;
+    margin-left: 0.5rem;
+}
+
+.badge-verified {
+    background: rgba(16, 185, 129, 0.15);
+    color: #6ee7b7;
+    border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.badge-unverified {
+    background: rgba(245, 158, 11, 0.15);
+    color: #fcd34d;
+    border: 1px solid rgba(245, 158, 11, 0.3);
 }
 
 /* Responsive */

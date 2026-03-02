@@ -22,7 +22,8 @@ import org.springframework.security.web.SecurityFilterChain;
 
 /**
  * Spring Security configuration class.
- * Configures HTTP security, JWT authentication filter, and endpoint access rules.
+ * Configures HTTP security, JWT authentication filter, and endpoint access
+ * rules.
  */
 @Configuration
 @EnableWebSecurity
@@ -36,22 +37,22 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-            .csrf(csrf -> csrf.disable())
-            .headers(headers -> headers.frameOptions(frameOptions -> frameOptions.disable()))
-            .authorizeHttpRequests(auth -> auth
-                .requestMatchers(
-                    "/", 
-                    "/index.html", 
-                    "/styles.css", 
-                    "/app.js", 
-                    "/static/**", 
-                    "/api/auth/login", 
-                    "/api/auth/register", 
-                    "/h2-console/**"
-                ).permitAll()
-                .anyRequest().authenticated()
-            )
-            .addFilterBefore(new JwtAuthFilter(jwtUtil, userService), UsernamePasswordAuthenticationFilter.class);
+                .csrf(csrf -> csrf.disable())
+                .headers(headers -> headers.frameOptions(frameOptions -> frameOptions.disable()))
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(
+                                "/",
+                                "/index.html",
+                                "/styles.css",
+                                "/app.js",
+                                "/static/**",
+                                "/api/auth/login",
+                                "/api/auth/register",
+                                "/api/auth/verify",
+                                "/h2-console/**")
+                        .permitAll()
+                        .anyRequest().authenticated())
+                .addFilterBefore(new JwtAuthFilter(jwtUtil, userService), UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
 
@@ -59,12 +60,15 @@ public class SecurityConfig {
     public static class JwtAuthFilter extends OncePerRequestFilter {
         private final JwtUtil jwtUtil;
         private final UserService userService;
+
         public JwtAuthFilter(JwtUtil jwtUtil, UserService userService) {
             this.jwtUtil = jwtUtil;
             this.userService = userService;
         }
+
         @Override
-        protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
+        protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
+                FilterChain filterChain)
                 throws ServletException, IOException {
             String authHeader = request.getHeader("Authorization");
             if (authHeader != null && authHeader.startsWith("Bearer ")) {
@@ -79,7 +83,8 @@ public class SecurityConfig {
                             SecurityContextHolder.getContext().setAuthentication(auth);
                         }
                     }
-                } catch (Exception ignored) {}
+                } catch (Exception ignored) {
+                }
             }
             filterChain.doFilter(request, response);
         }

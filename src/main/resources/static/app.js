@@ -96,6 +96,8 @@ const API_BASE = 'http://localhost:8080/api/auth';
 const views = {
     login: document.getElementById('loginView'),
     register: document.getElementById('registerView'),
+    checkEmail: document.getElementById('checkEmailView'),
+    verifyResult: document.getElementById('verifyResultView'),
     dashboard: document.getElementById('dashboardView')
 };
 
@@ -219,6 +221,16 @@ async function logout(token) {
 }
 
 // ========================================
+// EMAIL VERIFICATION API
+// ========================================
+
+async function verifyEmailToken(tokenId, t) {
+    const response = await fetch(`${API_BASE}/verify?tokenId=${encodeURIComponent(tokenId)}&t=${encodeURIComponent(t)}`);
+    const data = await response.json();
+    return { ok: response.ok, data };
+}
+
+// ========================================
 // FORM HANDLERS
 // ========================================
 
@@ -239,7 +251,7 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
     }
 });
 
-// Register Form
+// Register Form — now shows "Check Your Email" instead of going to dashboard
 document.getElementById('registerForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     clearErrors();
@@ -253,7 +265,10 @@ document.getElementById('registerForm').addEventListener('submit', async (e) => 
     try {
         const data = await register(firstName, lastName, email, password, phoneNumber);
         saveToken(data.token);
-        loadDashboard();
+
+        // Show the "Check Your Email" screen
+        document.getElementById('registeredEmail').textContent = email;
+        showView('checkEmail');
     } catch (error) {
         showError('registerError', error.message);
     }
@@ -286,6 +301,16 @@ document.getElementById('showLogin').addEventListener('click', (e) => {
     showView('login');
 });
 
+// Back to Login from Check Email screen
+document.getElementById('backToLoginBtn').addEventListener('click', () => {
+    showView('login');
+});
+
+// Back to Login from Verify Result screen
+document.getElementById('verifyToLoginBtn').addEventListener('click', () => {
+    showView('login');
+});
+
 // ========================================
 // DASHBOARD
 // ========================================
@@ -300,11 +325,15 @@ async function loadDashboard() {
     try {
         const user = await getCurrentUser(token);
 
-        // Display user info
+        // Display user info with verification badge
         const userInfoEl = document.getElementById('userInfo');
+        const verifiedBadge = user.verified
+            ? '<span class="badge badge-verified">✅ Verified</span>'
+            : '<span class="badge badge-unverified">⏳ Not Verified — check your email!</span>';
+
         userInfoEl.innerHTML = `
             <p><strong>Name:</strong> ${user.firstName} ${user.lastName}</p>
-            <p><strong>Email:</strong> ${user.email}</p>
+            <p><strong>Email:</strong> ${user.email} ${verifiedBadge}</p>
             <p><strong>Phone:</strong> ${user.phoneNumber || 'Not provided'}</p>
             <p><strong>Status:</strong> <span style="color: #10b981">${user.enabled ? 'Active' : 'Inactive'}</span></p>
         `;
@@ -318,11 +347,53 @@ async function loadDashboard() {
 }
 
 // ========================================
+// EMAIL VERIFICATION LINK HANDLER
+// ========================================
+
+async function handleVerificationLink() {
+    const params = new URLSearchParams(window.location.search);
+    const tokenId = params.get('tokenId');
+    const t = params.get('t');
+
+    // Check if the current page was loaded with verification params
+    if (tokenId && t) {
+        const result = await verifyEmailToken(tokenId, t);
+
+        const iconEl = document.getElementById('verifyIcon');
+        const titleEl = document.getElementById('verifyTitle');
+        const messageEl = document.getElementById('verifyMessage');
+
+        if (result.ok) {
+            iconEl.textContent = '✅';
+            iconEl.classList.add('success');
+            titleEl.textContent = 'Email Verified!';
+            messageEl.textContent = 'Your account has been confirmed. You can now log in.';
+        } else {
+            iconEl.textContent = '❌';
+            iconEl.classList.add('error');
+            titleEl.textContent = 'Verification Failed';
+            messageEl.textContent = result.data.error || 'The link is invalid or expired.';
+        }
+
+        showView('verifyResult');
+
+        // Clean the URL so refreshing doesn't re-trigger
+        window.history.replaceState({}, document.title, '/');
+        return true; // verification was handled
+    }
+    return false; // no verification params
+}
+
+// ========================================
 // INITIALIZATION
 // ========================================
 
-// Check if user is already logged in
-window.addEventListener('DOMContentLoaded', () => {
+window.addEventListener('DOMContentLoaded', async () => {
+    // First, check if the page was loaded with a verification link
+    const wasVerification = await handleVerificationLink();
+    if (wasVerification) return;
+
+    // Otherwise, check if user is already logged in
     const token = getToken();
     if (token) {
         loadDashboard();

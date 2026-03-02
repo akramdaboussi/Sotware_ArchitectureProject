@@ -168,11 +168,36 @@ public class AuthController {
             response.put("email", user.getEmail());
             response.put("phoneNumber", user.getPhoneNumber());
             response.put("enabled", user.isEnabled());
+            response.put("verified", user.isVerified());
 
             return ResponseEntity.ok(response);
 
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(createErrorResponse(e.getMessage()));
+        }
+    }
+
+    /**
+     * GET /api/auth/verify
+     * Verify user email
+     */
+    @GetMapping("/verify")
+    public ResponseEntity<Map<String, Object>> verifyEmail(
+            @RequestParam("tokenId") String tokenId,
+            @RequestParam("t") String tokenClear) {
+
+        logger.info("[CONTROLLER] Email verification request received for token");
+
+        try {
+            authService.verifyEmail(tokenId, tokenClear);
+            Map<String, Object> response = new HashMap<>();
+            response.put("message", "Email successfully verified!");
+            return ResponseEntity.ok(response);
+
+        } catch (RuntimeException e) {
+            logger.warn("[CONTROLLER] Email verification failed: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(createErrorResponse(e.getMessage()));
         }
     }

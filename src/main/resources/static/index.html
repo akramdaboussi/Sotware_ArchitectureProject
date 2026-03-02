@@ -71,6 +71,34 @@
                 <div id="registerError" class="error-message"></div>
             </div>
         </div>
+
+        <!-- Check Your Email View (shown after registration) -->
+        <div id="checkEmailView" class="view">
+            <div class="glass-card" style="text-align: center;">
+                <div class="email-icon">📧</div>
+                <h1>Check Your Email</h1>
+                <p class="subtitle">We've sent a verification link to:</p>
+                <p id="registeredEmail" class="highlight-email"></p>
+                <div class="info-box">
+                    <p>Click the link in the email to verify your account.</p>
+                    <p class="small-text">The link expires in <strong>15 minutes</strong>.</p>
+                    <p class="small-text" style="margin-top: 0.5rem;">
+                        📬 Check MailHog at <a href="http://localhost:8025" target="_blank" class="mailhog-link">localhost:8025</a>
+                    </p>
+                </div>
+                <button id="backToLoginBtn" class="btn btn-secondary" style="margin-top: 1.5rem;">Back to Login</button>
+            </div>
+        </div>
+
+        <!-- Email Verification Result View -->
+        <div id="verifyResultView" class="view">
+            <div class="glass-card" style="text-align: center;">
+                <div id="verifyIcon" class="verify-icon"></div>
+                <h1 id="verifyTitle"></h1>
+                <p id="verifyMessage" class="subtitle"></p>
+                <button id="verifyToLoginBtn" class="btn btn-primary" style="margin-top: 1.5rem;">Go to Login</button>
+            </div>
+        </div>
         
         <!-- Dashboard View -->
         <div id="dashboardView" class="view">

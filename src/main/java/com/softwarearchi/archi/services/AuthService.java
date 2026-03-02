@@ -13,6 +13,15 @@ import org.springframework.stereotype.Service;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.Map;
+import java.util.UUID;
+import java.time.LocalDateTime;
+
+import com.softwarearchi.archi.models.VerificationToken;
+import com.softwarearchi.archi.repository.VerificationTokenRepository;
+import com.softwarearchi.archi.events.UserRegisteredEvent;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.beans.factory.annotation.Value;
 
 /**
  * Authentication service - handles login, registration, and logout.
@@ -26,19 +35,32 @@ public class AuthService {
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final JwtUtil jwtUtil;
+    private final VerificationTokenRepository tokenRepository;
+    private final RabbitTemplate rabbitTemplate;
+    private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
-    public AuthService(UserService userService, UserRepository userRepository, RoleRepository roleRepository, JwtUtil jwtUtil) {
+    @Value("${app.mq.exchange:auth.events}")
+    private String exchange;
+
+    @Value("${app.mq.rk.userRegistered:auth.user-registered}")
+    private String userRegisteredRoutingKey;
+
+    public AuthService(UserService userService, UserRepository userRepository, RoleRepository roleRepository,
+            JwtUtil jwtUtil, VerificationTokenRepository tokenRepository, RabbitTemplate rabbitTemplate) {
         this.userService = userService;
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.jwtUtil = jwtUtil;
+        this.tokenRepository = tokenRepository;
+        this.rabbitTemplate = rabbitTemplate;
     }
 
     /**
      * Registers a new user in the system.
+     * 
      * @return The generated authentication JWT token.
      */
-        public String register(String firstName, String lastName, String email,
+    public String register(String firstName, String lastName, String email,
             String password, String phoneNumber) {
         logger.info("[SERVICE-AUTH] Starting registration for email: {}", email);
         logger.debug("[SERVICE-AUTH] Checking if email exists");
@@ -66,15 +88,48 @@ public class AuthService {
         // Save the user with assigned role(s)
         userRepository.save(user);
         logger.info("[SERVICE-USER] User saved with ID: {}", user.getId());
+
+        // Generate Verification Token
+        String eventId = UUID.randomUUID().toString();
+        String tokenId = UUID.randomUUID().toString();
+        String tokenClear = UUID.randomUUID().toString(); // The secret in the email
+        String tokenHash = passwordEncoder.encode(tokenClear);
+
+        VerificationToken verificationToken = new VerificationToken(
+                tokenId, tokenHash, user.getId(), LocalDateTime.now().plusMinutes(15));
+        tokenRepository.save(verificationToken);
+
+        // Publish Event
+        UserRegisteredEvent event = new UserRegisteredEvent(
+                eventId, user.getId(), user.getEmail(), tokenId, LocalDateTime.now());
+        // Temporary hack to pass tokenClear to the Notification service for the email
+        // link
+        // In a real app, maybe publish a different event or just append it to the token
+        // id if safe
+        // Or better yet, change the NotificationService to generate the clear token?
+        // No, Auth owns it.
+        // We'll just pass tokenClear in this single-node simplified setup by adding it
+        // to the event locally.
+        // But our event doesn't have tokenClear. Let's add it or pass it.
+        // The TP says: "tokenClear is included only in the simplest version of the TP".
+        // We will just add it as a new property or recreate the event. Let's just
+        // create an inline custom map to publish.
+        Map<String, Object> eventData = Map.of(
+                "eventId", eventId,
+                "userId", user.getId(),
+                "email", user.getEmail(),
+                "tokenId", tokenId,
+                "tokenClear", tokenClear,
+                "occurredAt", LocalDateTime.now().toString());
+        rabbitTemplate.convertAndSend(exchange, userRegisteredRoutingKey, eventData);
+        logger.info("[SERVICE-AUTH] Published UserRegisteredEvent for email: {}", email);
         // Generate JWT for the new user
         logger.info("[SERVICE-AUTH] Generating new JWT for user ID: {}", user.getId());
         String token = jwtUtil.generateToken(
-            user.getEmail(),
-            Map.of(
-                "userId", user.getId(),
-                "roles", user.getRoles().stream().map(Role::getName).toArray()
-            )
-        );
+                user.getEmail(),
+                Map.of(
+                        "userId", user.getId(),
+                        "roles", user.getRoles().stream().map(Role::getName).toArray()));
         java.util.Date expiresAt = jwtUtil.extractExpiration(token);
         logger.info("[SERVICE-AUTH] JWT generated, expires at: {}", expiresAt);
         return token;
@@ -82,6 +137,7 @@ public class AuthService {
 
     /**
      * Authenticates a user with provided credentials.
+     * 
      * @return The authentication JWT token if successful.
      */
     public String login(String email, String password) {
@@ -102,18 +158,17 @@ public class AuthService {
         }
         logger.info("[SERVICE-AUTH] Generating new JWT");
         String token = jwtUtil.generateToken(
-            user.getEmail(),
-            Map.of(
-                "userId", user.getId(),
-                "roles", user.getRoles().stream().map(Role::getName).toArray()
-            )
-        );
+                user.getEmail(),
+                Map.of(
+                        "userId", user.getId(),
+                        "roles", user.getRoles().stream().map(Role::getName).toArray()));
         // Login successful log should be in AuthController
         return token;
     }
 
     /**
-     * Logs out the user. (For JWT, nothing to do server-side; just remove token client-side)
+     * Logs out the user. (For JWT, nothing to do server-side; just remove token
+     * client-side)
      */
     public void logout(String token) {
         logger.info("[SERVICE-AUTH] Logout: nothing to do server-side with JWT");
@@ -137,7 +192,7 @@ public class AuthService {
             throw new RuntimeException("Invalid or expired token");
         }
     }
-    
+
     // Helper method to get an existing role or create it if it does not exist
     private Role getOrCreateRole(String name, String description) {
         return roleRepository.findByName(name)
@@ -147,5 +202,34 @@ public class AuthService {
                     newRole.setDescription(description);
                     return roleRepository.save(newRole);
                 });
+    }
+
+    public void verifyEmail(String tokenId, String tokenClear) {
+        VerificationToken token = tokenRepository.findByTokenId(tokenId)
+                .orElseThrow(() -> new RuntimeException("Invalid token"));
+
+        if (token.getExpiresAt().isBefore(LocalDateTime.now())) {
+            throw new RuntimeException("Token expired");
+        }
+
+        if (!passwordEncoder.matches(tokenClear, token.getTokenHash())) {
+            throw new RuntimeException("Invalid token signature");
+        }
+
+        User user = userRepository.findById(token.getUserId())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        // Idempotent: if already verified, just clean up the token
+        if (user.isVerified()) {
+            tokenRepository.delete(token);
+            logger.info("[SERVICE-AUTH] User {} already verified (idempotent)", user.getId());
+            return;
+        }
+
+        user.setVerified(true);
+        userRepository.save(user);
+        tokenRepository.delete(token);
+
+        logger.info("[SERVICE-AUTH] Email verified successfully for user ID: {}", user.getId());
     }
 }

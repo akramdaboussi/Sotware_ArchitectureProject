@@ -37,7 +37,8 @@ public class UserService implements UserDetailsService {
                 .accountLocked(!user.isEnabled())
                 .build();
     }
-
+    //TODO: remove the roles system, replace by the authorities (permissions) system
+    //natively integrated in org.springframework.security.core.userdetails
     private static final Logger logger = LoggerFactory.getLogger(UserService.class);
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
