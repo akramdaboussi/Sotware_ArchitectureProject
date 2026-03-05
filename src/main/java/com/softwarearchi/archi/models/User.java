@@ -6,8 +6,8 @@ import java.util.Set;
 import jakarta.persistence.*;
 
 /**
- * User entity for authentication system.
- * Stores credentials and roles for RBAC.
+ * Entité utilisateur pour le système d'authentification.
+ * Stocke les identifiants et les rôles pour le Contrôle d'Accès Basé sur les Rôles.
  */
 @Entity
 @Table(name = "users")
@@ -23,27 +23,27 @@ public class User {
     @Column(name = "last_name", nullable = false)
     private String lastName;
 
-    /** Optional phone number */
+    // Numéro de téléphone optionnel 
     @Column(name = "phone_number")
     private String phoneNumber;
 
-    /** Unique email used for login */
+    // Email unique utilisé pour la connexion 
     @Column(unique = true, nullable = false)
     private String email;
 
-    /** SHA-256 hashed password */
+    // Mot de passe haché en SHA-256 
     @Column(nullable = false)
     private String password;
 
-    /** False = account disabled */
+    // False = compte désactivé 
     @Column(nullable = false)
     private boolean enabled;
 
-    /** False = email not verified */
+    // False = email non vérifié 
     @Column(nullable = false)
     private boolean verified = false;
 
-    /** User roles (ROLE_USER, ROLE_ADMIN, ROLE_MODERATOR) */
+    // Rôles de l'utilisateur (ROLE_USER, ROLE_ADMIN, ROLE_MODERATOR) 
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(name = "user_roles", joinColumns = @JoinColumn(name = "user_id"), inverseJoinColumns = @JoinColumn(name = "role_id"))
     private Set<Role> roles;
@@ -54,13 +54,13 @@ public class User {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
-    /** Default constructor for JPA */
+    // Constructeur par défaut pour JPA 
     public User() {
         this.createdAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
     }
 
-    /** Create user with all attributes */
+    // Créer un utilisateur avec tous les attributs 
     public User(String firstName, String lastName, String phoneNumber, String email, String password, boolean enabled,
             Set<Role> roles) {
         this.firstName = firstName;

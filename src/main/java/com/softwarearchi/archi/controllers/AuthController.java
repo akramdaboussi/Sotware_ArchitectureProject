@@ -13,12 +13,12 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * REST Controller for authentication endpoints.
- * Handles HTTP requests and delegates business logic to AuthService.
+ * Contrôleur REST pour les endpoints d'authentification.
+ * Gère les requêtes HTTP et délègue la logique métier à AuthService.
  */
 @RestController
 @RequestMapping("/api/auth")
-@CrossOrigin(origins = "*") // Allow all origins for testing
+@CrossOrigin(origins = "*") // Autorise toutes les origines pour les tests
 public class AuthController {
 
     private static final Logger logger = LoggerFactory.getLogger(AuthController.class);
@@ -30,15 +30,15 @@ public class AuthController {
 
     /**
      * POST /api/auth/register
-     * Register a new user
-     * Request body: { firstName, lastName, email, password, phoneNumber }
+     * Inscrit un nouvel utilisateur
+     * Corps de la requête : { firstName, lastName, email, password, phoneNumber }
      */
     @PostMapping("/register")
     public ResponseEntity<Map<String, Object>> register(@RequestBody Map<String, String> request) {
         logger.info("[CONTROLLER] Registration request received");
 
         try {
-            // Extract fields from request
+            // Extraction des champs de la requête
             String firstName = request.get("firstName");
             String lastName = request.get("lastName");
             String email = request.get("email");
@@ -48,19 +48,19 @@ public class AuthController {
             logger.debug("[CONTROLLER] Registration data: email={}, firstName={}, lastName={}",
                     email, firstName, lastName);
 
-            // Validate required fields
+            // Validation des champs requis
             if (firstName == null || lastName == null || email == null || password == null) {
                 logger.warn("[CONTROLLER] Registration failed: Missing required fields for email={}", email);
                 return ResponseEntity.badRequest()
                         .body(createErrorResponse("Missing required fields"));
             }
 
-            // Call service to register
+            // Appel du service pour l'inscription
             String token = authService.register(firstName, lastName, email, password, phoneNumber);
 
             logger.info("[CONTROLLER] Registration successful");
 
-            // Return success response
+            // Retour de la réponse avec le token et les infos de l'utilisateur
             Map<String, Object> response = new HashMap<>();
             response.put("token", token);
             response.put("email", email);
@@ -78,8 +78,8 @@ public class AuthController {
 
     /**
      * POST /api/auth/login
-     * Login with email and password
-     * Request body: { email, password }
+     * Connexion avec email et mot de passe
+     * Corps de la requête : { email, password }
      */
     @PostMapping("/login")
     public ResponseEntity<Map<String, Object>> login(@RequestBody Map<String, String> request) {
@@ -98,12 +98,12 @@ public class AuthController {
                         .body(createErrorResponse("Email and password are required"));
             }
 
-            // Authenticate
+            // Authentification
             String token = authService.login(email, password);
 
             logger.info("[CONTROLLER] Login successful");
 
-            // Return token
+            // Retour du token
             Map<String, Object> response = new HashMap<>();
             response.put("token", token);
             response.put("email", email);
@@ -120,8 +120,7 @@ public class AuthController {
 
     /**
      * POST /api/auth/logout
-     * Logout user (JWT: just remove token client-side)
-     * Header: Authorization: Bearer <token>
+     * Déconnexion de l'utilisateur (JWT : simplement supprimer le token côté client)
      */
     @PostMapping("/logout")
     public ResponseEntity<Map<String, Object>> logout(@RequestHeader("Authorization") String authHeader) {
@@ -146,8 +145,7 @@ public class AuthController {
 
     /**
      * GET /api/auth/me
-     * Get current authenticated user
-     * Header: Authorization: Bearer <token>
+     * Obtenir l'utilisateur actuellement authentifié
      */
     @GetMapping("/me")
     public ResponseEntity<Map<String, Object>> getCurrentUser(@RequestHeader("Authorization") String authHeader) {
@@ -160,7 +158,7 @@ public class AuthController {
             User user = authService.getUserByToken(token);
             logger.info("[CONTROLLER] User info retrieved: email={}", user.getEmail());
 
-            // Create user response (do not send password!)
+            // Création de la réponse utilisateur (exclut les champs sensibles comme le mot de passe)
             Map<String, Object> response = new HashMap<>();
             response.put("id", user.getId());
             response.put("firstName", user.getFirstName());
@@ -180,7 +178,7 @@ public class AuthController {
 
     /**
      * GET /api/auth/verify
-     * Verify user email
+     * Vérifier l'email de l'utilisateur
      */
     @GetMapping("/verify")
     public ResponseEntity<Map<String, Object>> verifyEmail(
@@ -202,19 +200,15 @@ public class AuthController {
         }
     }
 
-    /**
-     * Helper: Extract token from Authorization header
-     */
+    // Utilitaire : Extraire le token de l'en-tête Authorization
     private String extractToken(String authHeader) {
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             throw new RuntimeException("Invalid authorization header");
         }
-        return authHeader.substring(7); // Remove "Bearer " prefix
+        return authHeader.substring(7); // Supprime le préfixe "Bearer "
     }
 
-    /**
-     * Helper: Create error response
-     */
+    // Utilitaire : Créer une réponse d'erreur
     private Map<String, Object> createErrorResponse(String message) {
         Map<String, Object> error = new HashMap<>();
         error.put("error", message);

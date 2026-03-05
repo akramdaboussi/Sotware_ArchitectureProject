@@ -2,13 +2,18 @@ package com.softwarearchi.archi.events;
 
 import java.time.LocalDateTime;
 
+/**
+ * Événement publié lors d'une inscription utilisateur.
+ * Envoyé via RabbitMQ au NotificationService pour déclencher l'email de vérification.
+ */
 public class UserRegisteredEvent {
-    private String eventId;
-    private Long userId;
-    private String email;
-    private String tokenId;
-    private LocalDateTime occurredAt;
+    private String eventId;      // UUID pour traçabilité
+    private Long userId;         // ID de l'utilisateur inscrit
+    private String email;        // Destination du mail
+    private String tokenId;      // Token de vérification associé
+    private LocalDateTime occurredAt;  // Horodatage
 
+    // Constructeur vide pour désérialisation JSON (important pour RabbitMQ)
     public UserRegisteredEvent() {
     }
 

@@ -7,9 +7,9 @@ import org.springframework.stereotype.Repository;
 
 import com.softwarearchi.archi.models.Role;
 
-/** JPA repository for Role entity CRUD operations */
+// Repository JPA pour les opérations CRUD sur l'entité Role
 @Repository
 public interface RoleRepository extends JpaRepository<Role, Long> {
-    /** Find role by name (e.g., ROLE_ADMIN) */
+    // Trouve un rôle par son nom (ex: ROLE_ADMIN)
     Optional<Role> findByName(String name);
 }

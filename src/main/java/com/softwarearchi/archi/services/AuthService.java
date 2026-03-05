@@ -24,8 +24,8 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.beans.factory.annotation.Value;
 
 /**
- * Authentication service - handles login, registration, and logout.
- * This is where the core authentication business logic lives.
+ * Service d'authentification : gère la connexion, l'inscription et la déconnexion.
+ * C'est ici que réside la logique métier principale d'authentification.
  */
 @Service
 public class AuthService {
@@ -56,9 +56,9 @@ public class AuthService {
     }
 
     /**
-     * Registers a new user in the system.
+     * Inscrit un nouvel utilisateur dans le système.
      * 
-     * @return The generated authentication JWT token.
+     * @return Le token JWT d'authentification généré.
      */
     public String register(String firstName, String lastName, String email,
             String password, String phoneNumber) {
@@ -71,13 +71,13 @@ public class AuthService {
 
         Role userRole = getOrCreateRole("ROLE_USER", "Standard user");
 
-        // Create a new user entity
+        // Création d'une nouvelle entité utilisateur
         logger.info("[SERVICE-USER] Creating user: {}", email);
         User user = new User();
         user.setFirstName(firstName);
         user.setLastName(lastName);
         user.setEmail(email);
-        user.setPassword(userService.hashPassword(password)); // Will be hashed in UserService
+        user.setPassword(userService.hashPassword(password)); // Hashage du mot de passe avant de le stocker
         user.setPhoneNumber(phoneNumber);
         user.setEnabled(true);
 
@@ -85,11 +85,11 @@ public class AuthService {
         roles.add(userRole);
         user.setRoles(roles);
 
-        // Save the user with assigned role(s)
+        // Sauvegarde de l'utilisateur avec le(s) rôle(s) assigné(s)
         userRepository.save(user);
         logger.info("[SERVICE-USER] User saved with ID: {}", user.getId());
 
-        // Generate Verification Token
+        // Génération du token de vérification
         String eventId = UUID.randomUUID().toString();
         String tokenId = UUID.randomUUID().toString();
         String tokenClear = UUID.randomUUID().toString(); // The secret in the email
@@ -99,21 +99,11 @@ public class AuthService {
                 tokenId, tokenHash, user.getId(), LocalDateTime.now().plusMinutes(15));
         tokenRepository.save(verificationToken);
 
-        // Publish Event
+        // Publication de l'événement
         UserRegisteredEvent event = new UserRegisteredEvent(
                 eventId, user.getId(), user.getEmail(), tokenId, LocalDateTime.now());
-        // Temporary hack to pass tokenClear to the Notification service for the email
-        // link
-        // In a real app, maybe publish a different event or just append it to the token
-        // id if safe
-        // Or better yet, change the NotificationService to generate the clear token?
-        // No, Auth owns it.
-        // We'll just pass tokenClear in this single-node simplified setup by adding it
-        // to the event locally.
-        // But our event doesn't have tokenClear. Let's add it or pass it.
-        // The TP says: "tokenClear is included only in the simplest version of the TP".
-        // We will just add it as a new property or recreate the event. Let's just
-        // create an inline custom map to publish.
+
+        // Envoi de l'événement à RabbitMQ
         Map<String, Object> eventData = Map.of(
                 "eventId", eventId,
                 "userId", user.getId(),
@@ -123,7 +113,7 @@ public class AuthService {
                 "occurredAt", LocalDateTime.now().toString());
         rabbitTemplate.convertAndSend(exchange, userRegisteredRoutingKey, eventData);
         logger.info("[SERVICE-AUTH] Published UserRegisteredEvent for email: {}", email);
-        // Generate JWT for the new user
+        // Génération du JWT pour le nouvel utilisateur
         logger.info("[SERVICE-AUTH] Generating new JWT for user ID: {}", user.getId());
         String token = jwtUtil.generateToken(
                 user.getEmail(),
@@ -136,12 +126,12 @@ public class AuthService {
     }
 
     /**
-     * Authenticates a user with provided credentials.
+     * Authentifie un utilisateur avec les identifiants fournis.
      * 
-     * @return The authentication JWT token if successful.
+     * @return Le token JWT d'authentification en cas de succès.
      */
     public String login(String email, String password) {
-        // Login attempt is logged in AuthController
+        // La tentative de connexion est loggée dans AuthController
         User user = userService.findByEmail(email);
         if (user == null) {
             logger.warn("[SERVICE-AUTH] Login failed: User not found");
@@ -162,21 +152,16 @@ public class AuthService {
                 Map.of(
                         "userId", user.getId(),
                         "roles", user.getRoles().stream().map(Role::getName).toArray()));
-        // Login successful log should be in AuthController
+        // Le log de succès de connexion devrait être dans AuthController
         return token;
     }
 
-    /**
-     * Logs out the user. (For JWT, nothing to do server-side; just remove token
-     * client-side)
-     */
+    // Déconnecte l'utilisateur 
     public void logout(String token) {
         logger.info("[SERVICE-AUTH] Logout: nothing to do server-side with JWT");
     }
 
-    /**
-     * Retrieves a user by authentication token (JWT).
-     */
+    // Récupère un utilisateur par son token d'authentification (JWT).
     public User getUserByToken(String token) {
         try {
             String email = jwtUtil.extractUsername(token);
@@ -193,7 +178,7 @@ public class AuthService {
         }
     }
 
-    // Helper method to get an existing role or create it if it does not exist
+    // Méthode utilitaire pour obtenir un rôle existant ou le créer s'il n'existe pas
     private Role getOrCreateRole(String name, String description) {
         return roleRepository.findByName(name)
                 .orElseGet(() -> {
@@ -204,6 +189,7 @@ public class AuthService {
                 });
     }
 
+    // Vérifie un token de vérification d'email et active l'utilisateur si le token est valide.
     public void verifyEmail(String tokenId, String tokenClear) {
         VerificationToken token = tokenRepository.findByTokenId(tokenId)
                 .orElseThrow(() -> new RuntimeException("Invalid token"));

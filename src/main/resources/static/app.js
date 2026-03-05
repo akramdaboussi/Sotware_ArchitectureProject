@@ -1,11 +1,11 @@
 // ========================================
-// CANVAS PARTICLE ANIMATION
+// ANIMATION DE PARTICULES CANVAS
 // ========================================
 
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
 
-// Set canvas size
+// Définir la taille du canvas
 function resizeCanvas() {
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
@@ -13,7 +13,7 @@ function resizeCanvas() {
 resizeCanvas();
 window.addEventListener('resize', resizeCanvas);
 
-// Particle class
+// Classe Particule
 class Particle {
     constructor() {
         this.x = Math.random() * canvas.width;
@@ -28,7 +28,7 @@ class Particle {
         this.x += this.speedX;
         this.y += this.speedY;
 
-        // Wrap around screen
+        // Rebouclage sur l'écran
         if (this.x > canvas.width) this.x = 0;
         if (this.x < 0) this.x = canvas.width;
         if (this.y > canvas.height) this.y = 0;
@@ -43,7 +43,7 @@ class Particle {
     }
 }
 
-// Create particles
+// Création des particules
 const particles = [];
 const particleCount = 100;
 
@@ -51,7 +51,7 @@ for (let i = 0; i < particleCount; i++) {
     particles.push(new Particle());
 }
 
-// Animation loop
+// Boucle d'animation
 function animate() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -60,7 +60,7 @@ function animate() {
         particle.draw();
     });
 
-    // Draw connections
+    // Dessiner les connexions
     particles.forEach((particleA, indexA) => {
         particles.slice(indexA + 1).forEach(particleB => {
             const dx = particleA.x - particleB.x;
@@ -84,13 +84,13 @@ function animate() {
 animate();
 
 // ========================================
-// API BASE URL
+// URL DE BASE DE L'API
 // ========================================
 
 const API_BASE = 'http://localhost:8080/api/auth';
 
 // ========================================
-// VIEW MANAGEMENT
+// GESTION DES VUES
 // ========================================
 
 const views = {
@@ -107,7 +107,7 @@ function showView(viewName) {
 }
 
 // ========================================
-// LOCAL STORAGE
+// STOCKAGE LOCAL
 // ========================================
 
 function saveToken(token) {
@@ -123,7 +123,7 @@ function clearToken() {
 }
 
 // ========================================
-// ERROR HANDLING
+// GESTION DES ERREURS
 // ========================================
 
 function showError(elementId, message) {
@@ -141,7 +141,7 @@ function clearErrors() {
 }
 
 // ========================================
-// AUTHENTICATION API CALLS
+// APPELS API D'AUTHENTIFICATION
 // ========================================
 
 async function register(firstName, lastName, email, password, phoneNumber) {
@@ -221,7 +221,7 @@ async function logout(token) {
 }
 
 // ========================================
-// EMAIL VERIFICATION API
+// API DE VÉRIFICATION D'EMAIL
 // ========================================
 
 async function verifyEmailToken(tokenId, t) {
@@ -231,10 +231,10 @@ async function verifyEmailToken(tokenId, t) {
 }
 
 // ========================================
-// FORM HANDLERS
+// GESTIONNAIRES DE FORMULAIRES
 // ========================================
 
-// Login Form
+// Formulaire de connexion
 document.getElementById('loginForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     clearErrors();
@@ -251,7 +251,7 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
     }
 });
 
-// Register Form — now shows "Check Your Email" instead of going to dashboard
+// Formulaire d'inscription — affiche maintenant "Vérifiez votre email" au lieu d'aller au tableau de bord
 document.getElementById('registerForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     clearErrors();
@@ -266,7 +266,7 @@ document.getElementById('registerForm').addEventListener('submit', async (e) => 
         const data = await register(firstName, lastName, email, password, phoneNumber);
         saveToken(data.token);
 
-        // Show the "Check Your Email" screen
+        // Affiche l'écran "Vérifiez votre email"
         document.getElementById('registeredEmail').textContent = email;
         showView('checkEmail');
     } catch (error) {
@@ -274,7 +274,7 @@ document.getElementById('registerForm').addEventListener('submit', async (e) => 
     }
 });
 
-// Logout Button
+// Bouton de déconnexion
 document.getElementById('logoutBtn').addEventListener('click', async () => {
     const token = getToken();
     if (token) {
@@ -288,7 +288,7 @@ document.getElementById('logoutBtn').addEventListener('click', async () => {
     showView('login');
 });
 
-// Toggle between login and register
+// Basculer entre connexion et inscription
 document.getElementById('showRegister').addEventListener('click', (e) => {
     e.preventDefault();
     clearErrors();
@@ -301,18 +301,18 @@ document.getElementById('showLogin').addEventListener('click', (e) => {
     showView('login');
 });
 
-// Back to Login from Check Email screen
+// Retour à la connexion depuis l'écran Vérifiez votre email
 document.getElementById('backToLoginBtn').addEventListener('click', () => {
     showView('login');
 });
 
-// Back to Login from Verify Result screen
+// Retour à la connexion depuis l'écran Résultat de vérification
 document.getElementById('verifyToLoginBtn').addEventListener('click', () => {
     showView('login');
 });
 
 // ========================================
-// DASHBOARD
+// TABLEAU DE BORD
 // ========================================
 
 async function loadDashboard() {
@@ -325,7 +325,7 @@ async function loadDashboard() {
     try {
         const user = await getCurrentUser(token);
 
-        // Display user info with verification badge
+        // Afficher les infos utilisateur avec le badge de vérification
         const userInfoEl = document.getElementById('userInfo');
         const verifiedBadge = user.verified
             ? '<span class="badge badge-verified">✅ Verified</span>'
@@ -347,7 +347,7 @@ async function loadDashboard() {
 }
 
 // ========================================
-// EMAIL VERIFICATION LINK HANDLER
+// GESTIONNAIRE DE LIEN DE VÉRIFICATION EMAIL
 // ========================================
 
 async function handleVerificationLink() {
@@ -355,7 +355,7 @@ async function handleVerificationLink() {
     const tokenId = params.get('tokenId');
     const t = params.get('t');
 
-    // Check if the current page was loaded with verification params
+    // Vérifier si la page a été chargée avec des paramètres de vérification
     if (tokenId && t) {
         const result = await verifyEmailToken(tokenId, t);
 
@@ -377,23 +377,23 @@ async function handleVerificationLink() {
 
         showView('verifyResult');
 
-        // Clean the URL so refreshing doesn't re-trigger
+        // Nettoyer l'URL pour éviter de redéclencher lors du rafraîchissement
         window.history.replaceState({}, document.title, '/');
-        return true; // verification was handled
+        return true; // la vérification a été traitée
     }
-    return false; // no verification params
+    return false; // pas de paramètres de vérification
 }
 
 // ========================================
-// INITIALIZATION
+// INITIALISATION
 // ========================================
 
 window.addEventListener('DOMContentLoaded', async () => {
-    // First, check if the page was loaded with a verification link
+    // D'abord, vérifie si la page a été chargée avec un lien de vérification
     const wasVerification = await handleVerificationLink();
     if (wasVerification) return;
 
-    // Otherwise, check if user is already logged in
+    // Sinon, vérifie si l'utilisateur est déjà connecté
     const token = getToken();
     if (token) {
         loadDashboard();

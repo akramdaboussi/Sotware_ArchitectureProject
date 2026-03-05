@@ -21,9 +21,9 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.web.SecurityFilterChain;
 
 /**
- * Spring Security configuration class.
- * Configures HTTP security, JWT authentication filter, and endpoint access
- * rules.
+ * Classe de configuration Spring Security.
+ * Configure la sécurité HTTP, le filtre d'authentification JWT et les règles
+ * d'accès aux endpoints.
  */
 @Configuration
 @EnableWebSecurity
@@ -56,7 +56,7 @@ public class SecurityConfig {
         return http.build();
     }
 
-    // Minimal JWT filter
+    // Filtre JWT minimal
     public static class JwtAuthFilter extends OncePerRequestFilter {
         private final JwtUtil jwtUtil;
         private final UserService userService;

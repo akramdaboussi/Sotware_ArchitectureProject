@@ -1,4 +1,4 @@
-/* Import Google Font */
+/* Importer la police Google */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
 :root {
@@ -31,7 +31,7 @@ body {
     position: relative;
 }
 
-/* Canvas Background */
+/* Fond Canvas */
 #canvas {
     position: fixed;
     top: 0;
@@ -42,7 +42,7 @@ body {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
 }
 
-/* Container */
+/* Conteneur */
 .container {
     position: relative;
     z-index: 1;
@@ -53,7 +53,7 @@ body {
     padding: 2rem;
 }
 
-/* View Management */
+/* Gestion des vues */
 .view {
     display: none;
     animation: fadeIn 0.5s ease-in-out;
@@ -74,7 +74,7 @@ body {
     }
 }
 
-/* Glass Card */
+/* Carte en verre */
 .glass-card {
     background: var(--glass-bg);
     backdrop-filter: blur(16px);
@@ -108,7 +108,7 @@ h1 {
     font-size: 1rem;
 }
 
-/* Form Styles */
+/* Styles de formulaire */
 .form {
     display: flex;
     flex-direction: column;
@@ -142,7 +142,7 @@ input:focus {
     box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
 }
 
-/* Buttons */
+/* Boutons */
 .btn {
     padding: 1rem 2rem;
     border: none;
@@ -179,7 +179,7 @@ input:focus {
     background: rgba(255, 255, 255, 0.15);
 }
 
-/* Toggle Text */
+/* Texte de basculement */
 .toggle-text {
     margin-top: 1.5rem;
     text-align: center;
@@ -197,7 +197,7 @@ input:focus {
     color: var(--secondary);
 }
 
-/* Error Message */
+/* Message d'erreur */
 .error-message {
     margin-top: 1rem;
     padding: 0.75rem;
@@ -220,7 +220,7 @@ input:focus {
     75% { transform: translateX(10px); }
 }
 
-/* Dashboard Styles */
+/* Styles du tableau de bord */
 .dashboard {
     min-height: 400px;
 }
@@ -243,17 +243,17 @@ input:focus {
 }
 
 /* ========================================
-   EMAIL VERIFICATION STYLES
+   STYLES DE VÉRIFICATION EMAIL
    ======================================== */
 
-/* Big email icon */
+/* Grande icône email */
 .email-icon {
     font-size: 4rem;
     margin-bottom: 1rem;
     animation: bounceIn 0.6s ease;
 }
 
-/* Highlighted email address */
+/* Adresse email mise en surbrillance */
 .highlight-email {
     font-size: 1.15rem;
     font-weight: 600;
@@ -265,7 +265,7 @@ input:focus {
     margin: 0.75rem 0 1.5rem 0;
 }
 
-/* Info box */
+/* Boîte d'information */
 .info-box {
     background: rgba(255, 255, 255, 0.06);
     border: 1px solid rgba(255, 255, 255, 0.1);
@@ -297,7 +297,7 @@ input:focus {
     color: var(--secondary);
 }
 
-/* Verification result icon */
+/* Icône de résultat de vérification */
 .verify-icon {
     font-size: 5rem;
     margin-bottom: 1rem;
@@ -329,7 +329,7 @@ input:focus {
     }
 }
 
-/* Verification badge on dashboard */
+/* Badge de vérification sur le tableau de bord */
 .badge {
     display: inline-block;
     padding: 0.2rem 0.6rem;
@@ -352,7 +352,7 @@ input:focus {
     border: 1px solid rgba(245, 158, 11, 0.3);
 }
 
-/* Responsive */
+/* Responsive (adapté aux mobiles) */
 @media (max-width: 640px) {
     .glass-card {
         padding: 2rem;

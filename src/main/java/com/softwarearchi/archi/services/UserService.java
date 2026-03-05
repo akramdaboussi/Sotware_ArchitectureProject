@@ -19,8 +19,8 @@ import java.util.Base64;
 import java.util.List;
 
 /**
- * Service for user management operations.
- * Handles user creation, retrieval, password hashing, and role management.
+ * Service de gestion des utilisateurs.
+ * Gère la création d'utilisateurs, la récupération, le hachage des mots de passe et la gestion des rôles.
  */
 @Service
 public class UserService implements UserDetailsService {
@@ -37,8 +37,8 @@ public class UserService implements UserDetailsService {
                 .accountLocked(!user.isEnabled())
                 .build();
     }
-    //TODO: remove the roles system, replace by the authorities (permissions) system
-    //natively integrated in org.springframework.security.core.userdetails
+    //TODO: supprimer le système de rôles, remplacer par le système d'autorités (permissions)
+    //intégré nativement dans org.springframework.security.core.userdetails
     private static final Logger logger = LoggerFactory.getLogger(UserService.class);
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
@@ -48,9 +48,7 @@ public class UserService implements UserDetailsService {
         this.roleRepository = roleRepository;
     }
 
-    /**
-     * Create and save a new user (password is hashed before saving)
-     */
+    // Crée et sauvegarde un nouvel utilisateur (le mot de passe est haché avant la sauvegarde)
     public User createUser(User user) {
         logger.info("[SERVICE-USER] Creating user: {}", user.getEmail());
 
@@ -61,42 +59,34 @@ public class UserService implements UserDetailsService {
         return savedUser;
     }
 
-    /**
-     * Find user by email. Returns null if not found.
-     */
+    // Trouve un utilisateur par email. Retourne null si non trouvé.
     public User findByEmail(String email) {
         logger.debug("[SERVICE-USER] Finding user by email: {}", email);
         return userRepository.findByEmail(email).orElse(null);
     }
 
-    /**
-     * Find user by ID. Returns null if not found.
-     */
+    // Trouve un utilisateur par ID. Retourne null si non trouvé.
     public User findById(Long id) {
         logger.debug("[SERVICE-USER] Finding user by ID: {}", id);
         return userRepository.findById(id).orElse(null);  
     }
 
-    /**
-     * Check if a user exists with the given email.
-     */
+    // Vérifie si un utilisateur existe avec l'email donné.
     public boolean existsByEmail(String email) {
         return userRepository.existsByEmail(email);
     }
 
-    /**
-     * Retrieve all users from the database.
-     */
+    // Récupère tous les utilisateurs de la base de données.
     public List<User> findAllUsers() {
         logger.debug("[SERVICE-USER] Finding all users");
         return userRepository.findAll();
     }
 
-    // --- Role management ---
+    // --- Gestion des rôles ---
 
     /**
-     * Add a role to a user by email and role name.
-     * Throws if user or role not found.
+     * Ajoute un rôle à un utilisateur par email et nom de rôle.
+     * Lève une exception si l'utilisateur ou le rôle n'est pas trouvé.
      */
     public void addRoleToUser(String email, String roleName) {
         logger.info("[SERVICE-USER] Adding role {} to user {}", roleName, email);
@@ -114,8 +104,8 @@ public class UserService implements UserDetailsService {
     }
 
     /**
-     * Remove a role from a user by email and role name.
-     * Throws if user not found.
+     * Supprime un rôle d'un utilisateur par email et nom de rôle.
+     * Lève une exception si l'utilisateur n'est pas trouvé.
      */
     public void removeRoleFromUser(String email, String roleName) {
         logger.info("[SERVICE-USER] Removing role {} from user {}", roleName, email);
@@ -129,26 +119,20 @@ public class UserService implements UserDetailsService {
         logger.info("[SERVICE-USER] Role {} removed from user {}", roleName, email);
     }
 
-    /**
-     * Check if a user has a specific role.
-     */
+    // Vérifie si un utilisateur a un rôle spécifique.
     public boolean hasRole(User user, String roleName) {
         return user.getRoles().stream()
                 .anyMatch(role -> role.getName().equals(roleName));
     }
 
-    /**
-     * Check if a user has the admin role.
-     */
+    // Vérifie si un utilisateur a le rôle administrateur.
     public boolean isAdmin(User user) {
         return hasRole(user, "ROLE_ADMIN");
     }
 
-    /**
-     * Hash a password using SHA-256 and Base64 encoding.
-     */
+    // Hache un mot de passe en utilisant SHA-256 et l'encodage Base64.
     public String hashPassword(String password) {
-        // Hashing password (SHA-256)
+        // Hachage du mot de passe (SHA-256)
         logger.debug("[SERVICE-USER] Hashing password (SHA-256)");
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
@@ -159,9 +143,7 @@ public class UserService implements UserDetailsService {
         }
     }
 
-    /**
-     * Verify if a raw password matches the stored hash.
-     */
+    // Vérifie si un mot de passe en clair correspond au hash stocké.
     public boolean verifyPassword(String rawPassword, String hashedPassword) {
         logger.debug("[SERVICE-USER] Verifying password");
         String hashedInput = hashPassword(rawPassword);

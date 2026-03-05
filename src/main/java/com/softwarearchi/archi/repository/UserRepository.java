@@ -7,11 +7,11 @@ import org.springframework.stereotype.Repository;
 
 import com.softwarearchi.archi.models.User;
 
-/** JPA repository for User entity CRUD operations */
+// Repository JPA pour les opérations CRUD sur l'entité User 
 @Repository
 public interface UserRepository extends JpaRepository<User, Long> {
-    /** Find user by email (used for login) */
+    // Trouve un utilisateur par email (utilisé pour la connexion) 
     Optional<User> findByEmail(String email);
-    /** Check if email is already registered */
+    // Vérifie si un email est déjà enregistré 
     boolean existsByEmail(String email);
 }

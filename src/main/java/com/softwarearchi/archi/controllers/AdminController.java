@@ -16,8 +16,8 @@ import com.softwarearchi.archi.services.AuthService;
 import com.softwarearchi.archi.services.UserService;
 
 /**
- * REST controller for admin-only operations.
- * All endpoints require ROLE_ADMIN - returns 403 otherwise.
+ * Contrôleur REST pour les opérations réservées aux administrateurs.
+ * Tous les endpoints nécessitent ROLE_ADMIN - retourne 403 sinon.
  */
 @RestController
 @RequestMapping("/api/admin")
@@ -34,7 +34,7 @@ public class AdminController {
         this.authService = authService;
     }
 
-    /** Validates token and checks ROLE_ADMIN. Throws RuntimeException if unauthorized. */
+    // Valide le token et vérifie ROLE_ADMIN. Lève une RuntimeException si non autorisé. 
     private User verifyAdmin(String authHeader) {
         String token = extractToken(authHeader);
         User user = authService.getUserByToken(token);
@@ -44,7 +44,7 @@ public class AdminController {
         return user;
     }
 
-    /** Extracts token from "Bearer <token>" header format. */
+    // Extrait le token du format d'en-tête "Bearer <token>". 
     private String extractToken(String authHeader) {
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             throw new RuntimeException("Invalid authorization header");
@@ -53,8 +53,8 @@ public class AdminController {
     }
 
     /**
-     * GET /api/admin/users - List all users with their roles.
-     * Returns: [{id, email, firstName, lastName, enabled, roles}]
+     * GET /api/admin/users - Liste tous les utilisateurs avec leurs rôles.
+     * Retourne : [{id, email, firstName, lastName, enabled, roles}]
      */
     @GetMapping("/users")
     public ResponseEntity<Object> getAllUsers(@RequestHeader("Authorization") String authHeader) {
@@ -65,7 +65,7 @@ public class AdminController {
 
             List<User> users = userService.findAllUsers();
             
-            // Map users to DTOs (exclude sensitive fields like password)
+            // Conversion des utilisateurs en DTOs (exclut les champs sensibles comme le mot de passe)
             List<Map<String, Object>> userList = users.stream().map(user -> {
                 Map<String, Object> userMap = new HashMap<>();
                 userMap.put("id", user.getId());
@@ -89,8 +89,8 @@ public class AdminController {
     }
 
     /**
-     * POST /api/admin/add-role - Add a role to a user.
-     * Body: {email, role} - e.g., {"email": "user@example.com", "role": "ROLE_MODERATOR"}
+     * POST /api/admin/add-role - Ajoute un rôle à un utilisateur.
+     * Corps : {email, role} - ex: {"email": "user@example.com", "role": "ROLE_MODERATOR"}
      */
     @PostMapping("/add-role")
     public ResponseEntity<Map<String, Object>> addRole(
@@ -124,8 +124,8 @@ public class AdminController {
     }
 
     /**
-     * POST /api/admin/remove-role - Remove a role from a user.
-     * Body: {email, role} - e.g., {"email": "user@example.com", "role": "ROLE_MODERATOR"}
+     * POST /api/admin/remove-role - Supprime un rôle d'un utilisateur.
+     * Corps : {email, role} - ex: {"email": "user@example.com", "role": "ROLE_MODERATOR"}
      */
     @PostMapping("/remove-role")
     public ResponseEntity<Map<String, Object>> removeRole(

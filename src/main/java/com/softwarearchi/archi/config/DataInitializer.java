@@ -9,8 +9,8 @@ import com.softwarearchi.archi.models.Role;
 import com.softwarearchi.archi.repository.RoleRepository;
 
 /**
- * Seeds the database with default roles at application startup.
- * Implements CommandLineRunner to execute after Spring context loads.
+ * Initialise la base de données avec les rôles par défaut au démarrage de l'application.
+ * Implémente CommandLineRunner pour s'exécuter après le chargement du contexte Spring.
  */
 @Component
 public class DataInitializer implements CommandLineRunner {
@@ -23,10 +23,7 @@ public class DataInitializer implements CommandLineRunner {
         this.roleRepository = roleRepository;
     }
 
-    /**
-     * Creates default roles for RBAC: USER, ADMIN, MODERATOR.
-     * Idempotent - safe to run multiple times.
-     */
+    // Crée les rôles par défaut : USER, ADMIN, MODERATOR. 
     @Override
     public void run(String... args) {
         logger.info("[INIT] Initializing default roles...");
@@ -38,7 +35,7 @@ public class DataInitializer implements CommandLineRunner {
         logger.info("[INIT] Default roles initialized successfully");
     }
 
-    /** Creates role only if it doesn't exist (prevents duplicates). */
+    // Crée un rôle seulement s'il n'existe pas (évite les doublons). 
     private void createRoleIfNotExists(String name, String description) {
         if (roleRepository.findByName(name).isEmpty()) {
             Role role = new Role(name);
