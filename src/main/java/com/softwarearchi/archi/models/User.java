@@ -7,7 +7,7 @@ import jakarta.persistence.*;
 
 /**
  * Entité utilisateur pour le système d'authentification.
- * Stocke les identifiants et les rôles pour le Contrôle d'Accès Basé sur les Rôles.
+ * Stocke les identifiants et les permissions pour le contrôle d'accès granulaire.
  */
 @Entity
 @Table(name = "users")
@@ -43,10 +43,10 @@ public class User {
     @Column(nullable = false)
     private boolean verified = false;
 
-    // Rôles de l'utilisateur (ROLE_USER, ROLE_ADMIN, ROLE_MODERATOR) 
+    // Permissions de l'utilisateur (READ_USERS, MANAGE_USERS, ADMIN, etc.)
     @ManyToMany(fetch = FetchType.EAGER)
-    @JoinTable(name = "user_roles", joinColumns = @JoinColumn(name = "user_id"), inverseJoinColumns = @JoinColumn(name = "role_id"))
-    private Set<Role> roles;
+    @JoinTable(name = "user_permissions", joinColumns = @JoinColumn(name = "user_id"), inverseJoinColumns = @JoinColumn(name = "permission_id"))
+    private Set<Permission> permissions;
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;
@@ -62,14 +62,14 @@ public class User {
 
     // Créer un utilisateur avec tous les attributs 
     public User(String firstName, String lastName, String phoneNumber, String email, String password, boolean enabled,
-            Set<Role> roles) {
+            Set<Permission> permissions) {
         this.firstName = firstName;
         this.lastName = lastName;
         this.phoneNumber = phoneNumber;
         this.email = email;
         this.password = password;
         this.enabled = enabled;
-        this.roles = roles;
+        this.permissions = permissions;
         this.createdAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
     }
@@ -131,12 +131,12 @@ public class User {
         this.enabled = enabled;
     }
 
-    public Set<Role> getRoles() {
-        return roles;
+    public Set<Permission> getPermissions() {
+        return permissions;
     }
 
-    public void setRoles(Set<Role> roles) {
-        this.roles = roles;
+    public void setPermissions(Set<Permission> permissions) {
+        this.permissions = permissions;
     }
 
     public LocalDateTime getCreatedAt() {

@@ -4,8 +4,8 @@ import com.softwarearchi.archi.utils.JwtUtil;
 
 import com.softwarearchi.archi.models.User;
 import com.softwarearchi.archi.repository.UserRepository;
-import com.softwarearchi.archi.models.Role;
-import com.softwarearchi.archi.repository.RoleRepository;
+import com.softwarearchi.archi.models.Permission;
+import com.softwarearchi.archi.repository.PermissionRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -17,11 +17,13 @@ import java.util.UUID;
 import java.time.LocalDateTime;
 
 import com.softwarearchi.archi.models.VerificationToken;
+import com.softwarearchi.archi.models.JwtToken;
 import com.softwarearchi.archi.repository.VerificationTokenRepository;
-import com.softwarearchi.archi.events.UserRegisteredEvent;
+import com.softwarearchi.archi.repository.JwtTokenRepository;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.beans.factory.annotation.Value;
+import java.time.ZoneId;
 
 /**
  * Service d'authentification : gère la connexion, l'inscription et la déconnexion.
@@ -33,9 +35,10 @@ public class AuthService {
     private static final Logger logger = LoggerFactory.getLogger(AuthService.class);
     private final UserService userService;
     private final UserRepository userRepository;
-    private final RoleRepository roleRepository;
+    private final PermissionRepository permissionRepository;
     private final JwtUtil jwtUtil;
     private final VerificationTokenRepository tokenRepository;
+    private final JwtTokenRepository jwtTokenRepository;
     private final RabbitTemplate rabbitTemplate;
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
@@ -45,13 +48,15 @@ public class AuthService {
     @Value("${app.mq.rk.userRegistered:auth.user-registered}")
     private String userRegisteredRoutingKey;
 
-    public AuthService(UserService userService, UserRepository userRepository, RoleRepository roleRepository,
-            JwtUtil jwtUtil, VerificationTokenRepository tokenRepository, RabbitTemplate rabbitTemplate) {
+    public AuthService(UserService userService, UserRepository userRepository, PermissionRepository permissionRepository,
+            JwtUtil jwtUtil, VerificationTokenRepository tokenRepository, JwtTokenRepository jwtTokenRepository,
+            RabbitTemplate rabbitTemplate) {
         this.userService = userService;
         this.userRepository = userRepository;
-        this.roleRepository = roleRepository;
+        this.permissionRepository = permissionRepository;
         this.jwtUtil = jwtUtil;
         this.tokenRepository = tokenRepository;
+        this.jwtTokenRepository = jwtTokenRepository;
         this.rabbitTemplate = rabbitTemplate;
     }
 
@@ -69,7 +74,9 @@ public class AuthService {
             throw new RuntimeException("User with email " + email + " already exists");
         }
 
-        Role userRole = getOrCreateRole("ROLE_USER", "Standard user");
+        Permission basicPermission = getOrCreatePermission("READ_PROFILE", "Lire son propre profil");
+        Permission editPermission = getOrCreatePermission("EDIT_PROFILE", "Modifier son propre profil");
+        Permission deleteAccountPermission = getOrCreatePermission("DELETE_ACCOUNT", "Supprimer son propre compte");
 
         // Création d'une nouvelle entité utilisateur
         logger.info("[SERVICE-USER] Creating user: {}", email);
@@ -81,9 +88,11 @@ public class AuthService {
         user.setPhoneNumber(phoneNumber);
         user.setEnabled(true);
 
-        Set<Role> roles = new HashSet<>();
-        roles.add(userRole);
-        user.setRoles(roles);
+        Set<Permission> permissions = new HashSet<>();
+        permissions.add(basicPermission);
+        permissions.add(editPermission);
+        permissions.add(deleteAccountPermission);
+        user.setPermissions(permissions);
 
         // Sauvegarde de l'utilisateur avec le(s) rôle(s) assigné(s)
         userRepository.save(user);
@@ -98,10 +107,6 @@ public class AuthService {
         VerificationToken verificationToken = new VerificationToken(
                 tokenId, tokenHash, user.getId(), LocalDateTime.now().plusMinutes(15));
         tokenRepository.save(verificationToken);
-
-        // Publication de l'événement
-        UserRegisteredEvent event = new UserRegisteredEvent(
-                eventId, user.getId(), user.getEmail(), tokenId, LocalDateTime.now());
 
         // Envoi de l'événement à RabbitMQ
         Map<String, Object> eventData = Map.of(
@@ -119,9 +124,13 @@ public class AuthService {
                 user.getEmail(),
                 Map.of(
                         "userId", user.getId(),
-                        "roles", user.getRoles().stream().map(Role::getName).toArray()));
+                        "permissions", user.getPermissions().stream().map(Permission::getName).toArray()));
         java.util.Date expiresAt = jwtUtil.extractExpiration(token);
-        logger.info("[SERVICE-AUTH] JWT generated, expires at: {}", expiresAt);
+        
+        // Sauvegarde du JWT en base de données
+        saveJwtToken(token, user.getEmail(), user.getId(), expiresAt);
+        
+        logger.info("[SERVICE-AUTH] JWT generated and saved, expires at: {}", expiresAt);
         return token;
     }
 
@@ -151,14 +160,45 @@ public class AuthService {
                 user.getEmail(),
                 Map.of(
                         "userId", user.getId(),
-                        "roles", user.getRoles().stream().map(Role::getName).toArray()));
-        // Le log de succès de connexion devrait être dans AuthController
+                        "permissions", user.getPermissions().stream().map(Permission::getName).toArray()));
+        
+        // Sauvegarde du JWT en base de données
+        java.util.Date expiresAt = jwtUtil.extractExpiration(token);
+        saveJwtToken(token, user.getEmail(), user.getId(), expiresAt);
+        
+        logger.info("[SERVICE-AUTH] JWT generated and saved to database");
         return token;
     }
 
-    // Déconnecte l'utilisateur 
+    // Déconnecte l'utilisateur en révoquant le token dans la base de données
     public void logout(String token) {
-        logger.info("[SERVICE-AUTH] Logout: nothing to do server-side with JWT");
+        int revoked = jwtTokenRepository.revokeToken(token);
+        if (revoked > 0) {
+            logger.info("[SERVICE-AUTH] Token revoked successfully");
+        } else {
+            logger.warn("[SERVICE-AUTH] Token not found in database");
+        }
+    }
+
+    // Vérifie si un token JWT est valide (existe en base et non révoqué)
+    public boolean isTokenValid(String token) {
+        return jwtTokenRepository.existsByTokenAndRevokedFalse(token);
+    }
+
+    // Sauvegarde un token JWT en base de données
+    private void saveJwtToken(String token, String email, Long userId, java.util.Date expiresAt) {
+        LocalDateTime expiresAtLocal = expiresAt.toInstant()
+                .atZone(ZoneId.systemDefault())
+                .toLocalDateTime();
+        JwtToken jwtToken = new JwtToken(token, email, userId, expiresAtLocal);
+        jwtTokenRepository.save(jwtToken);
+        logger.debug("[SERVICE-AUTH] JWT token saved to database for user: {}", email);
+    }
+
+    // Révoque tous les tokens d'un utilisateur (logout de toutes les sessions)
+    public void logoutAllSessions(Long userId) {
+        int revoked = jwtTokenRepository.revokeAllUserTokens(userId);
+        logger.info("[SERVICE-AUTH] Revoked {} tokens for user ID: {}", revoked, userId);
     }
 
     // Récupère un utilisateur par son token d'authentification (JWT).
@@ -178,15 +218,36 @@ public class AuthService {
         }
     }
 
-    // Méthode utilitaire pour obtenir un rôle existant ou le créer s'il n'existe pas
-    private Role getOrCreateRole(String name, String description) {
-        return roleRepository.findByName(name)
+    // Méthode utilitaire pour obtenir une permission existante ou la créer si elle n'existe pas
+    private Permission getOrCreatePermission(String name, String description) {
+        return permissionRepository.findByName(name)
                 .orElseGet(() -> {
-                    logger.debug("[SERVICE-AUTH] Creating role: {}", name);
-                    Role newRole = new Role(name);
-                    newRole.setDescription(description);
-                    return roleRepository.save(newRole);
+                    logger.debug("[SERVICE-AUTH] Creating permission: {}", name);
+                    Permission newPermission = new Permission(name);
+                    newPermission.setDescription(description);
+                    return permissionRepository.save(newPermission);
                 });
+    }
+
+    // Supprime le compte de l'utilisateur (auto-résiliation)
+    public void deleteAccount(String token) {
+        User user = getUserByToken(token);
+        
+        // Vérifier que l'utilisateur a la permission DELETE_ACCOUNT
+        if (!userService.hasPermission(user, "DELETE_ACCOUNT") && !userService.hasPermission(user, "ADMIN")) {
+            throw new RuntimeException("Permission denied: DELETE_ACCOUNT required");
+        }
+
+        // Révoquer tous les tokens JWT de l'utilisateur
+        jwtTokenRepository.revokeAllUserTokens(user.getId());
+        
+        // Supprimer les tokens de vérification
+        tokenRepository.deleteByUserId(user.getId());
+        
+        // Supprimer l'utilisateur
+        userRepository.delete(user);
+        
+        logger.info("[SERVICE-AUTH] Account deleted for user ID: {}", user.getId());
     }
 
     // Vérifie un token de vérification d'email et active l'utilisateur si le token est valide.

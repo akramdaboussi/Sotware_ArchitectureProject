@@ -5,11 +5,17 @@ import org.slf4j.LoggerFactory;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 
-import com.softwarearchi.archi.models.Role;
-import com.softwarearchi.archi.repository.RoleRepository;
+import com.softwarearchi.archi.models.Permission;
+import com.softwarearchi.archi.models.User;
+import com.softwarearchi.archi.repository.PermissionRepository;
+import com.softwarearchi.archi.repository.UserRepository;
+import com.softwarearchi.archi.services.UserService;
+
+import java.util.HashSet;
+import java.util.Set;
 
 /**
- * Initialise la base de données avec les rôles par défaut au démarrage de l'application.
+ * Initialise la base de données avec les permissions par défaut et un super admin au démarrage.
  * Implémente CommandLineRunner pour s'exécuter après le chargement du contexte Spring.
  */
 @Component
@@ -17,33 +23,79 @@ public class DataInitializer implements CommandLineRunner {
 
     private static final Logger logger = LoggerFactory.getLogger(DataInitializer.class);
 
-    private final RoleRepository roleRepository;
+    private final PermissionRepository permissionRepository;
+    private final UserRepository userRepository;
+    private final UserService userService;
 
-    public DataInitializer(RoleRepository roleRepository) {
-        this.roleRepository = roleRepository;
+    // Identifiants du super admin par défaut (à changer en production !)
+    private static final String ADMIN_EMAIL = "admin@admin.com";
+    private static final String ADMIN_PASSWORD = "admin123";
+
+    public DataInitializer(PermissionRepository permissionRepository, UserRepository userRepository, UserService userService) {
+        this.permissionRepository = permissionRepository;
+        this.userRepository = userRepository;
+        this.userService = userService;
     }
 
-    // Crée les rôles par défaut : USER, ADMIN, MODERATOR. 
+    // Crée les permissions par défaut au démarrage
     @Override
     public void run(String... args) {
-        logger.info("[INIT] Initializing default roles...");
+        logger.info("[INIT] Initializing default permissions...");
 
-        createRoleIfNotExists("ROLE_USER", "Standard user");
-        createRoleIfNotExists("ROLE_ADMIN", "Administrator with full access");
-        createRoleIfNotExists("ROLE_MODERATOR", "Content moderator");
+        // Permissions de base (attribuées automatiquement à l'inscription)
+        createPermissionIfNotExists("READ_PROFILE", "Lire son propre profil");
+        createPermissionIfNotExists("EDIT_PROFILE", "Modifier son propre profil");
+        createPermissionIfNotExists("DELETE_ACCOUNT", "Supprimer son propre compte");
 
-        logger.info("[INIT] Default roles initialized successfully");
+        // Permissions de gestion (attribuées par un admin)
+        createPermissionIfNotExists("READ_USERS", "Lire la liste des utilisateurs");
+        createPermissionIfNotExists("MANAGE_USERS", "Modifier des utilisateurs");
+        createPermissionIfNotExists("DELETE_USERS", "Supprimer des utilisateurs");
+        createPermissionIfNotExists("MANAGE_PERMISSIONS", "Attribuer des permissions");
+
+        // Permission administrateur (toutes les permissions)
+        createPermissionIfNotExists("ADMIN", "Accès administrateur complet");
+
+        logger.info("[INIT] Default permissions initialized successfully");
+
+        // Création du super admin s'il n'existe pas
+        createSuperAdminIfNotExists();
     }
 
-    // Crée un rôle seulement s'il n'existe pas (évite les doublons). 
-    private void createRoleIfNotExists(String name, String description) {
-        if (roleRepository.findByName(name).isEmpty()) {
-            Role role = new Role(name);
-            role.setDescription(description);
-            roleRepository.save(role);
-            logger.info("[INIT] Created role: {}", name);
+    // Crée un super admin avec toutes les permissions s'il n'existe pas
+    private void createSuperAdminIfNotExists() {
+        if (userRepository.findByEmail(ADMIN_EMAIL).isEmpty()) {
+            logger.info("[INIT] Creating super admin user...");
+
+            User admin = new User();
+            admin.setFirstName("Super");
+            admin.setLastName("Admin");
+            admin.setEmail(ADMIN_EMAIL);
+            admin.setPassword(userService.hashPassword(ADMIN_PASSWORD));
+            admin.setEnabled(true);
+            admin.setVerified(true);
+
+            // Attribuer TOUTES les permissions au super admin
+            Set<Permission> allPermissions = new HashSet<>(permissionRepository.findAll());
+            admin.setPermissions(allPermissions);
+
+            userRepository.save(admin);
+            logger.info("[INIT] Super admin created: {} (password: {})", ADMIN_EMAIL, ADMIN_PASSWORD);
+            logger.warn("[INIT] ⚠️  CHANGEZ LE MOT DE PASSE ADMIN EN PRODUCTION !");
         } else {
-            logger.debug("[INIT] Role already exists: {}", name);
+            logger.debug("[INIT] Super admin already exists");
+        }
+    }
+
+    // Crée une permission seulement si elle n'existe pas (évite les doublons)
+    private void createPermissionIfNotExists(String name, String description) {
+        if (permissionRepository.findByName(name).isEmpty()) {
+            Permission permission = new Permission(name);
+            permission.setDescription(description);
+            permissionRepository.save(permission);
+            logger.info("[INIT] Created permission: {}", name);
+        } else {
+            logger.debug("[INIT] Permission already exists: {}", name);
         }
     }
 }

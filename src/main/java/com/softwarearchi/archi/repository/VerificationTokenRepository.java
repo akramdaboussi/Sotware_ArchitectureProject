@@ -12,4 +12,7 @@ public interface VerificationTokenRepository extends JpaRepository<VerificationT
     
     /** Recherche un token par son identifiant public (utilisé lors de la validation email) */
     Optional<VerificationToken> findByTokenId(String tokenId);
+
+    /** Supprime tous les tokens de vérification d'un utilisateur (utilisé lors de la suppression de compte) */
+    void deleteByUserId(Long userId);
 }
