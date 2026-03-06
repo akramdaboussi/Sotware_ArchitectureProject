@@ -177,6 +177,33 @@ public class AuthController {
     }
 
     /**
+     * DELETE /api/auth/me
+     * Supprimer son propre compte (auto-résiliation)
+     * Nécessite la permission DELETE_ACCOUNT
+     */
+    @DeleteMapping("/me")
+    public ResponseEntity<Map<String, Object>> deleteAccount(@RequestHeader("Authorization") String authHeader) {
+        logger.info("[CONTROLLER] Delete account request received");
+
+        try {
+            String token = extractToken(authHeader);
+            logger.debug("[CONTROLLER] Token extracted for account deletion");
+
+            authService.deleteAccount(token);
+            logger.info("[CONTROLLER] Account deleted successfully");
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("message", "Account deleted successfully");
+            return ResponseEntity.ok(response);
+
+        } catch (RuntimeException e) {
+            logger.warn("[CONTROLLER] Account deletion failed: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(createErrorResponse(e.getMessage()));
+        }
+    }
+
+    /**
      * GET /api/auth/verify
      * Vérifier l'email de l'utilisateur
      */

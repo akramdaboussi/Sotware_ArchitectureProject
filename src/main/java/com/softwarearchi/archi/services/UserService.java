@@ -1,8 +1,8 @@
 package com.softwarearchi.archi.services;
 
-import com.softwarearchi.archi.models.Role;
+import com.softwarearchi.archi.models.Permission;
 import com.softwarearchi.archi.models.User;
-import com.softwarearchi.archi.repository.RoleRepository;
+import com.softwarearchi.archi.repository.PermissionRepository;
 import com.softwarearchi.archi.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,7 +20,7 @@ import java.util.List;
 
 /**
  * Service de gestion des utilisateurs.
- * Gère la création d'utilisateurs, la récupération, le hachage des mots de passe et la gestion des rôles.
+ * Gère la création d'utilisateurs, la récupération, le hachage des mots de passe et la gestion des permissions.
  */
 @Service
 public class UserService implements UserDetailsService {
@@ -33,19 +33,18 @@ public class UserService implements UserDetailsService {
         return org.springframework.security.core.userdetails.User.builder()
                 .username(user.getEmail())
                 .password(user.getPassword())
-                .authorities(user.getRoles().stream().map(r -> new SimpleGrantedAuthority(r.getName())).toList())
+                .authorities(user.getPermissions().stream().map(p -> new SimpleGrantedAuthority(p.getName())).toList())
                 .accountLocked(!user.isEnabled())
                 .build();
     }
-    //TODO: supprimer le système de rôles, remplacer par le système d'autorités (permissions)
-    //intégré nativement dans org.springframework.security.core.userdetails
+    
     private static final Logger logger = LoggerFactory.getLogger(UserService.class);
     private final UserRepository userRepository;
-    private final RoleRepository roleRepository;
+    private final PermissionRepository permissionRepository;
 
-    public UserService(UserRepository userRepository, RoleRepository roleRepository) {
+    public UserService(UserRepository userRepository, PermissionRepository permissionRepository) {
         this.userRepository = userRepository;
-        this.roleRepository = roleRepository;
+        this.permissionRepository = permissionRepository;
     }
 
     // Crée et sauvegarde un nouvel utilisateur (le mot de passe est haché avant la sauvegarde)
@@ -82,52 +81,59 @@ public class UserService implements UserDetailsService {
         return userRepository.findAll();
     }
 
-    // --- Gestion des rôles ---
+    // Supprime un utilisateur par son ID
+    public void deleteUser(Long id) {
+        logger.info("[SERVICE-USER] Deleting user with ID: {}", id);
+        userRepository.deleteById(id);
+        logger.info("[SERVICE-USER] User deleted successfully");
+    }
+
+    // --- Gestion des permissions ---
 
     /**
-     * Ajoute un rôle à un utilisateur par email et nom de rôle.
-     * Lève une exception si l'utilisateur ou le rôle n'est pas trouvé.
+     * Ajoute une permission à un utilisateur par email et nom de permission.
+     * Lève une exception si l'utilisateur ou la permission n'est pas trouvée.
      */
-    public void addRoleToUser(String email, String roleName) {
-        logger.info("[SERVICE-USER] Adding role {} to user {}", roleName, email);
+    public void addPermissionToUser(String email, String permissionName) {
+        logger.info("[SERVICE-USER] Adding permission {} to user {}", permissionName, email);
 
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found: " + email));
 
-        Role role = roleRepository.findByName(roleName)
-                .orElseThrow(() -> new RuntimeException("Role not found: " + roleName));
+        Permission permission = permissionRepository.findByName(permissionName)
+                .orElseThrow(() -> new RuntimeException("Permission not found: " + permissionName));
 
-        user.getRoles().add(role);
+        user.getPermissions().add(permission);
         userRepository.save(user);
 
-        logger.info("[SERVICE-USER] Role {} added to user {}", roleName, email);
+        logger.info("[SERVICE-USER] Permission {} added to user {}", permissionName, email);
     }
 
     /**
-     * Supprime un rôle d'un utilisateur par email et nom de rôle.
+     * Supprime une permission d'un utilisateur par email et nom de permission.
      * Lève une exception si l'utilisateur n'est pas trouvé.
      */
-    public void removeRoleFromUser(String email, String roleName) {
-        logger.info("[SERVICE-USER] Removing role {} from user {}", roleName, email);
+    public void removePermissionFromUser(String email, String permissionName) {
+        logger.info("[SERVICE-USER] Removing permission {} from user {}", permissionName, email);
 
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found: " + email));
 
-        user.getRoles().removeIf(role -> role.getName().equals(roleName));
+        user.getPermissions().removeIf(permission -> permission.getName().equals(permissionName));
         userRepository.save(user);
 
-        logger.info("[SERVICE-USER] Role {} removed from user {}", roleName, email);
+        logger.info("[SERVICE-USER] Permission {} removed from user {}", permissionName, email);
     }
 
-    // Vérifie si un utilisateur a un rôle spécifique.
-    public boolean hasRole(User user, String roleName) {
-        return user.getRoles().stream()
-                .anyMatch(role -> role.getName().equals(roleName));
+    // Vérifie si un utilisateur a une permission spécifique.
+    public boolean hasPermission(User user, String permissionName) {
+        return user.getPermissions().stream()
+                .anyMatch(permission -> permission.getName().equals(permissionName));
     }
 
-    // Vérifie si un utilisateur a le rôle administrateur.
+    // Vérifie si un utilisateur a la permission administrateur.
     public boolean isAdmin(User user) {
-        return hasRole(user, "ROLE_ADMIN");
+        return hasPermission(user, "ADMIN");
     }
 
     // Hache un mot de passe en utilisant SHA-256 et l'encodage Base64.
