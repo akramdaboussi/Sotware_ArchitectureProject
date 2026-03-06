@@ -27,7 +27,7 @@ Ce projet implémente un système d'authentification moderne suivant les bonnes 
 - **Communication asynchrone** : découplage via RabbitMQ (Event-Driven Architecture)
 - **Authentification stateless** : tokens JWT sans état côté serveur
 - **Sécurité renforcée** : hachage des mots de passe, tokens de vérification sécurisés
-- **RBAC** : gestion fine des permissions par rôles
+- **Permissions granulaires** : contrôle d'accès fin par permissions
 
 ---
 
@@ -53,6 +53,26 @@ Ce projet implémente un système d'authentification moderne suivant les bonnes 
 - **Java 17+** : `java -version`
 - **Maven** : inclus via `./mvnw` (Maven Wrapper)
 - **Docker** : `docker --version` et `docker-compose --version`
+
+### Installation Docker (WSL)
+
+```bash
+# Mettre à jour les paquets
+sudo apt update && sudo apt upgrade -y
+
+# Installer Docker
+sudo apt install -y docker.io docker-compose
+
+# Ajouter l'utilisateur au groupe docker (évite d'utiliser sudo)
+sudo usermod -aG docker $USER
+
+# Redémarrer le terminal ou appliquer les changements
+newgrp docker
+
+# Vérifier l'installation
+docker --version
+docker-compose --version
+```
 
 ### Démarrage
 
@@ -99,6 +119,21 @@ docker-compose logs -f mailhog
 | **MailHog** (emails) | http://localhost:8025 | - |
 | **RabbitMQ** (admin) | http://localhost:15672 | guest / guest |
 
+### Compte administrateur
+
+Un **super admin** est créé automatiquement au premier démarrage avec toutes les permissions :
+
+| Champ | Valeur |
+|-------|--------|
+| **Email** | `admin@admin.com` |
+| **Mot de passe** | `admin123` |
+| **Permissions** | Toutes (14 permissions) |
+
+Ce compte permet de :
+- Voir tous les utilisateurs (`GET /api/admin/users`)
+- Ajouter des permissions (`POST /api/admin/add-permission`)
+- Retirer des permissions (`POST /api/admin/remove-permission`)
+
 ---
 
 ## Structure du projet
@@ -110,7 +145,7 @@ src/main/java/com/softwarearchi/archi/
 ├── config/
 │   ├── SecurityConfig.java        # Configuration Spring Security + filtre JWT
 │   ├── RabbitMQConfig.java        # Exchanges, queues, bindings RabbitMQ
-│   └── DataInitializer.java       # Création des rôles par défaut au démarrage
+│   └── DataInitializer.java       # Création des permissions par défaut au démarrage
 │
 ├── controllers/
 │   ├── AuthController.java        # Endpoints /api/auth/*
@@ -123,13 +158,15 @@ src/main/java/com/softwarearchi/archi/
 │
 ├── repository/
 │   ├── UserRepository.java        # Accès table users
-│   ├── RoleRepository.java        # Accès table roles
-│   └── VerificationTokenRepository.java  # Accès table verification_tokens
+│   ├── PermissionRepository.java  # Accès table permissions
+│   ├── VerificationTokenRepository.java  # Accès table verification_tokens
+│   └── JwtTokenRepository.java    # Accès table jwt_tokens (révocation)
 │
 ├── models/
 │   ├── User.java                  # Entité JPA utilisateur
-│   ├── Role.java                  # Entité JPA rôle
-│   └── VerificationToken.java     # Entité JPA token de vérification
+│   ├── Permission.java            # Entité JPA permission
+│   ├── VerificationToken.java     # Entité JPA token de vérification
+│   └── JwtToken.java              # Entité JPA token JWT (stockage en BDD)
 │
 ├── events/
 │   └── UserRegisteredEvent.java   # DTO événement inscription
@@ -188,24 +225,39 @@ src/main/resources/
 
 ## Fonctionnalités implémentées
 
-### 1. Authentification JWT (Stateless)
+### 1. Authentification JWT (avec stockage en BDD)
 
-L'authentification utilise des **JSON Web Tokens** pour une architecture sans état :
+L'authentification utilise des **JSON Web Tokens** avec **stockage en base de données** pour permettre la révocation :
 
 **Principe** :
 - À la connexion, le serveur génère un JWT signé contenant l'ID utilisateur et ses rôles
+- Le token est **sauvegardé en base de données** (table `jwt_tokens`)
 - Le client stocke ce token et l'envoie dans l'en-tête `Authorization: Bearer <token>`
-- Le serveur valide la signature sans consulter la base de données
+- Le serveur valide la signature **ET vérifie que le token existe en base** (non révoqué)
 
-**Avantages** :
-- Scalabilité horizontale (pas de session serveur à partager)
-- Performance (pas de requête DB pour chaque requête authentifiée)
-- Simplicité côté client
+**Avantages du stockage en BDD** :
+- **Vrai logout** : le token est marqué comme révoqué en base
+- **Gestion des sessions** : possibilité de voir et révoquer toutes les sessions actives
+- **Sécurité renforcée** : possibilité de forcer la déconnexion d'un utilisateur
 
 **Configuration** (`JwtUtil.java`) :
 - Algorithme : HS256 (HMAC-SHA256)
 - Durée de validité : 24 heures
-- Claims inclus : email (subject), userId, roles
+- Claims inclus : email (subject), userId, permissions
+
+**Flux de validation** :
+```
+1. Requête avec Authorization: Bearer <token>
+   └─▶ JwtAuthFilter extrait le token
+   └─▶ Valide la signature JWT (JwtUtil)
+   └─▶ Vérifie en base : token existe ET non révoqué (AuthService.isTokenValid)
+   └─▶ Si valide → authentification réussie
+
+2. POST /logout
+   └─▶ AuthService.logout(token)
+   └─▶ Marque le token comme revoked=true en base
+   └─▶ Les requêtes suivantes avec ce token seront rejetées
+```
 
 ### 2. Vérification d'email asynchrone
 
@@ -245,32 +297,43 @@ Le système implémente une vérification d'email découplée via RabbitMQ :
 - Le système reste réactif même si MailHog est lent
 - Les messages échoués sont conservés dans la DLQ pour retry manuel
 
-### 3. Contrôle d'accès RBAC
+### 3. Contrôle d'accès par permissions
 
-Le système implémente un contrôle d'accès basé sur les rôles :
+Le système implémente un contrôle d'accès granulaire par permissions :
 
-**Rôles disponibles** :
-| Rôle | Description | Permissions |
-|------|-------------|-------------|
-| `ROLE_USER` | Utilisateur standard | Accès à son profil, endpoints auth de base |
-| `ROLE_ADMIN` | Administrateur | Gestion des utilisateurs, attribution des rôles |
-| `ROLE_MODERATOR` | Modérateur | Consultation de tous les utilisateurs |
+**Permissions disponibles** :
+
+| Catégorie | Permission | Description |
+|-----------|------------|-------------|
+| **Base** | `READ_PROFILE` | Lire son propre profil |
+| | `EDIT_PROFILE` | Modifier son propre profil |
+| | `DELETE_ACCOUNT` | Supprimer son propre compte |
+| **Gestion** | `READ_USERS` | Voir la liste des utilisateurs |
+| | `MANAGE_USERS` | Modifier des utilisateurs |
+| | `DELETE_USERS` | Supprimer des utilisateurs |
+| | `MANAGE_PERMISSIONS` | Attribuer des permissions |
+| **Admin** | `ADMIN` | Accès administrateur complet |
+
+**Permissions par défaut** :
+- À l'inscription, un utilisateur reçoit : `READ_PROFILE`, `EDIT_PROFILE`, `DELETE_ACCOUNT`
+- Les autres permissions doivent être attribuées par un admin/utilisateur avec `MANAGE_PERMISSIONS`
 
 **Matrice des permissions** :
-| Endpoint | USER | ADMIN | MODERATOR |
-|----------|:----:|:-----:|:---------:|
-| `/api/auth/register` | ✅ | ✅ | ✅ |
-| `/api/auth/login` | ✅ | ✅ | ✅ |
-| `/api/auth/me` | ✅ | ✅ | ✅ |
-| `/api/admin/users` | ❌ | ✅ | ✅ |
-| `/api/admin/add-role` | ❌ | ✅ | ❌ |
-| `/api/admin/remove-role` | ❌ | ✅ | ❌ |
+| Endpoint | Permission requise |
+|----------|-------------------|
+| `/api/auth/register` | Aucune (public) |
+| `/api/auth/login` | Aucune (public) |
+| `/api/auth/me` (GET) | Authentifié |
+| `/api/auth/me` (DELETE) | `DELETE_ACCOUNT` ou `ADMIN` |
+| `/api/admin/users` (GET) | `READ_USERS` ou `ADMIN` |
+| `/api/admin/users/{id}` (DELETE) | `DELETE_USERS` ou `ADMIN` |
+| `/api/admin/add-permission` | `MANAGE_PERMISSIONS` ou `ADMIN` |
+| `/api/admin/remove-permission` | `MANAGE_PERMISSIONS` ou `ADMIN` |
 
 **Implémentation** :
-- Les rôles sont stockés en base (table `roles`) et liés aux utilisateurs (table `user_roles`)
-- Le JWT contient la liste des rôles de l'utilisateur
-- `SecurityConfig` configure les règles d'accès aux endpoints
-- `AdminController` vérifie manuellement `ROLE_ADMIN` avant chaque opération sensible
+- Les permissions sont stockées en base (table `permissions`) et liées aux utilisateurs (table `user_permissions`)
+- Le JWT contient la liste des permissions de l'utilisateur
+- `AdminController` vérifie la permission appropriée avant chaque opération
 
 ### 4. Hachage sécurisé des mots de passe
 
@@ -338,23 +401,47 @@ Authorization: Bearer eyJhbG...
 → 200 OK { "message": "Logout successful" }
 ```
 
-### Endpoints admin (ROLE_ADMIN requis)
+```http
+DELETE /api/auth/me
+Authorization: Bearer eyJhbG...
+
+→ 200 OK { "message": "Account deleted successfully" }
+```
+
+### Endpoints admin (permissions spécifiques requises)
 
 ```http
 GET /api/admin/users
 Authorization: Bearer eyJhbG...
 
-→ 200 OK [{ "id": 1, "email": "...", "roles": ["ROLE_USER"] }, ...]
+→ 200 OK [{ "id": 1, "email": "...", "permissions": ["READ_PROFILE", "EDIT_PROFILE"] }, ...]
 ```
 
 ```http
-POST /api/admin/add-role
+POST /api/admin/add-permission
 Authorization: Bearer eyJhbG...
 Content-Type: application/json
 
-{ "email": "john@example.com", "role": "ROLE_MODERATOR" }
+{ "email": "john@example.com", "permission": "MANAGE_USERS" }
 
-→ 200 OK { "message": "Role ROLE_MODERATOR added to john@example.com" }
+→ 200 OK { "message": "Permission MANAGE_USERS added to john@example.com" }
+```
+
+```http
+POST /api/admin/remove-permission
+Authorization: Bearer eyJhbG...
+Content-Type: application/json
+
+{ "email": "john@example.com", "permission": "MANAGE_USERS" }
+
+→ 200 OK { "message": "Permission MANAGE_USERS removed from john@example.com" }
+```
+
+```http
+DELETE /api/admin/users/5
+Authorization: Bearer eyJhbG...
+
+→ 200 OK { "message": "User deleted successfully" }
 ```
 
 ---
@@ -383,6 +470,18 @@ curl -X POST http://localhost:8080/api/auth/login \
   -d '{"email": "john@example.com", "password": "secret123"}'
 ```
 
+### Connexion admin
+
+```bash
+# Se connecter avec le super admin créé automatiquement
+curl -X POST http://localhost:8080/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email": "admin@admin.com", "password": "admin123"}'
+
+# Réponse : {"token": "eyJhbG...", "message": "Login successful"}
+# Utiliser ce token pour les requêtes /api/admin/*
+```
+
 ### Récupérer le profil (avec JWT)
 
 ```bash
@@ -398,13 +497,36 @@ curl -X GET http://localhost:8080/api/admin/users \
   -H "Authorization: Bearer <TOKEN_ADMIN>"
 ```
 
-### Ajouter un rôle (admin)
+### Ajouter une permission (admin)
 
 ```bash
-curl -X POST http://localhost:8080/api/admin/add-role \
+curl -X POST http://localhost:8080/api/admin/add-permission \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <TOKEN_ADMIN>" \
-  -d '{"email": "john@example.com", "role": "ROLE_MODERATOR"}'
+  -d '{"email": "john@example.com", "permission": "MANAGE_USERS"}'
+```
+
+### Retirer une permission (admin)
+
+```bash
+curl -X POST http://localhost:8080/api/admin/remove-permission \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <TOKEN_ADMIN>" \
+  -d '{"email": "john@example.com", "permission": "MANAGE_USERS"}'
+```
+
+### Supprimer un utilisateur (admin)
+
+```bash
+curl -X DELETE http://localhost:8080/api/admin/users/5 \
+  -H "Authorization: Bearer <TOKEN_ADMIN>"
+```
+
+### Supprimer son propre compte (auto-résiliation)
+
+```bash
+curl -X DELETE http://localhost:8080/api/auth/me \
+  -H "Authorization: Bearer <TOKEN>"
 ```
 
 ### Vérification email
@@ -423,8 +545,11 @@ Pour importer dans Postman, créer une collection avec les requêtes suivantes :
 | Register | POST | `{{base_url}}/api/auth/register` | JSON body |
 | Login | POST | `{{base_url}}/api/auth/login` | JSON body |
 | Me | GET | `{{base_url}}/api/auth/me` | Header: `Authorization: Bearer {{token}}` |
+| Delete Account | DELETE | `{{base_url}}/api/auth/me` | Header: `Authorization: Bearer {{token}}` |
 | Users | GET | `{{base_url}}/api/admin/users` | Header: `Authorization: Bearer {{token}}` |
-| Add Role | POST | `{{base_url}}/api/admin/add-role` | JSON body + Auth header |
+| Delete User | DELETE | `{{base_url}}/api/admin/users/:id` | Header: `Authorization: Bearer {{token}}` |
+| Add Permission | POST | `{{base_url}}/api/admin/add-permission` | JSON body + Auth header |
+| Remove Permission | POST | `{{base_url}}/api/admin/remove-permission` | JSON body + Auth header |
 
 **Variables d'environnement Postman** :
 - `base_url` : `http://localhost:8080`
@@ -449,18 +574,18 @@ users (
   updated_at    TIMESTAMP
 )
 
--- Table des rôles
-roles (
+-- Table des permissions
+permissions (
   id          BIGINT PRIMARY KEY AUTO_INCREMENT,
-  name        VARCHAR(255) UNIQUE NOT NULL,  -- Ex: ROLE_ADMIN
+  name        VARCHAR(255) UNIQUE NOT NULL,  -- Ex: ADMIN, MANAGE_USERS
   description VARCHAR(255)
 )
 
--- Association utilisateurs-rôles (Many-to-Many)
-user_roles (
-  user_id  BIGINT REFERENCES users(id),
-  role_id  BIGINT REFERENCES roles(id),
-  PRIMARY KEY (user_id, role_id)
+-- Association utilisateurs-permissions (Many-to-Many)
+user_permissions (
+  user_id       BIGINT REFERENCES users(id),
+  permission_id BIGINT REFERENCES permissions(id),
+  PRIMARY KEY (user_id, permission_id)
 )
 
 -- Tokens de vérification email
@@ -470,6 +595,17 @@ verification_tokens (
   token_hash  VARCHAR(255) NOT NULL,         -- Hash BCrypt du secret
   user_id     BIGINT NOT NULL,
   expires_at  TIMESTAMP NOT NULL             -- Expiration 15 min
+)
+
+-- Tokens JWT stockés pour révocation
+jwt_tokens (
+  id          BIGINT PRIMARY KEY AUTO_INCREMENT,
+  token       VARCHAR(512) UNIQUE NOT NULL,  -- Le JWT complet
+  email       VARCHAR(255) NOT NULL,
+  user_id     BIGINT NOT NULL,
+  created_at  TIMESTAMP NOT NULL,
+  expires_at  TIMESTAMP NOT NULL,
+  revoked     BOOLEAN NOT NULL DEFAULT FALSE -- True si logout effectué
 )
 ```
 
@@ -486,7 +622,7 @@ Le système utilise SLF4J avec des tags par couche pour faciliter le debug :
 | `[SERVICE-AUTH]` | AuthService | Login, register, verify |
 | `[SERVICE-USER]` | UserService | CRUD utilisateurs |
 | `[NOTIFICATION]` | NotificationService | Envoi d'emails |
-| `[INIT]` | DataInitializer | Création des rôles au démarrage |
+| `[INIT]` | DataInitializer | Création des permissions au démarrage |
 
 **Exemple de trace d'inscription réussie** :
 ```
