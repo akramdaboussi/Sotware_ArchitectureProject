@@ -12,10 +12,7 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.stereotype.Service;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.util.Base64;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import java.util.List;
 
 /**
@@ -24,6 +21,8 @@ import java.util.List;
  */
 @Service
 public class UserService implements UserDetailsService {
+    
+    private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
     @Override
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
         User user = findByEmail(email);
@@ -51,7 +50,7 @@ public class UserService implements UserDetailsService {
     public User createUser(User user) {
         logger.info("[SERVICE-USER] Creating user: {}", user.getEmail());
 
-        // Hash the password before saving
+        // Hachage du mot de passe avant sauvegarde
         user.setPassword(hashPassword(user.getPassword()));
         User savedUser = userRepository.save(user);
         logger.info("[SERVICE-USER] User saved with ID: {}", savedUser.getId());
@@ -136,24 +135,16 @@ public class UserService implements UserDetailsService {
         return hasPermission(user, "ADMIN");
     }
 
-    // Hache un mot de passe en utilisant SHA-256 et l'encodage Base64.
+    // Hache un mot de passe en utilisant BCrypt.
     public String hashPassword(String password) {
-        // Hachage du mot de passe (SHA-256)
-        logger.debug("[SERVICE-USER] Hashing password (SHA-256)");
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hash = digest.digest(password.getBytes(StandardCharsets.UTF_8));
-            return Base64.getEncoder().encodeToString(hash);
-        } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException("Error hashing password", e);
-        }
+        logger.debug("[SERVICE-USER] Hashing password (BCrypt)");
+        return passwordEncoder.encode(password);
     }
 
-    // Vérifie si un mot de passe en clair correspond au hash stocké.
+    // Vérifie si un mot de passe en clair correspond au hash BCrypt stocké.
     public boolean verifyPassword(String rawPassword, String hashedPassword) {
         logger.debug("[SERVICE-USER] Verifying password");
-        String hashedInput = hashPassword(rawPassword);
-        boolean matches = hashedInput.equals(hashedPassword);
+        boolean matches = passwordEncoder.matches(rawPassword, hashedPassword);
         if (matches) {
             logger.debug("[SERVICE-USER] Password verification successful");
         } else {
