@@ -127,7 +127,7 @@ Un **super admin** est créé automatiquement au premier démarrage avec toutes 
 |-------|--------|
 | **Email** | `admin@admin.com` |
 | **Mot de passe** | `admin123` |
-| **Permissions** | Toutes (14 permissions) |
+| **Permissions** | Toutes (8 permissions) |
 
 Ce compte permet de :
 - Voir tous les utilisateurs (`GET /api/admin/users`)
