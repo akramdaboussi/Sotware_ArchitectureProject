@@ -56,16 +56,16 @@ public class AuthController {
             }
 
             // Appel du service pour l'inscription
-            String token = authService.register(firstName, lastName, email, password, phoneNumber);
+            String message = authService.register(firstName, lastName, email, password, phoneNumber);
 
-            logger.info("[CONTROLLER] Registration successful");
+            logger.info("[CONTROLLER] Registration successful, awaiting email verification");
 
-            // Retour de la réponse avec le token et les infos de l'utilisateur
+            // Retour de la réponse (sans JWT, l'utilisateur doit d'abord vérifier son email)
             Map<String, Object> response = new HashMap<>();
-            response.put("token", token);
             response.put("email", email);
             response.put("firstName", firstName);
-            response.put("message", "Registration successful");
+            response.put("message", message);
+            response.put("verified", false);
 
             return ResponseEntity.status(HttpStatus.CREATED).body(response);
 
@@ -91,7 +91,7 @@ public class AuthController {
 
             logger.debug("[CONTROLLER] Login attempt for email={}", email);
 
-            // Validate
+            // Validation des champs requis
             if (email == null || password == null) {
                 logger.warn("[CONTROLLER] Login failed: Missing email or password");
                 return ResponseEntity.badRequest()
@@ -204,6 +204,32 @@ public class AuthController {
     }
 
     /**
+     * GET /api/auth/validate
+     * Valide un token JWT (pour NGINX auth_request)
+     * Retourne 200 si valide, 401 sinon
+     */
+    @GetMapping("/validate")
+    public ResponseEntity<Void> validateToken(@RequestHeader(value = "Authorization", required = false) String authHeader) {
+        logger.debug("[CONTROLLER] Token validation request (NGINX auth_request)");
+
+        try {
+            if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            }
+            String token = extractToken(authHeader);
+            
+            // Vérifie que le token est valide et non révoqué
+            if (authService.isTokenValid(token)) {
+                return ResponseEntity.ok().build();
+            } else {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            }
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+    }
+
+    /**
      * GET /api/auth/verify
      * Vérifier l'email de l'utilisateur
      */
@@ -215,9 +241,10 @@ public class AuthController {
         logger.info("[CONTROLLER] Email verification request received for token");
 
         try {
-            authService.verifyEmail(tokenId, tokenClear);
+            String token = authService.verifyEmail(tokenId, tokenClear);
             Map<String, Object> response = new HashMap<>();
             response.put("message", "Email successfully verified!");
+            response.put("token", token);
             return ResponseEntity.ok(response);
 
         } catch (RuntimeException e) {

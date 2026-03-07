@@ -63,7 +63,7 @@ public class AuthService {
     /**
      * Inscrit un nouvel utilisateur dans le système.
      * 
-     * @return Le token JWT d'authentification généré.
+     * @return Message demandant la vérification de l'email.
      */
     public String register(String firstName, String lastName, String email,
             String password, String phoneNumber) {
@@ -101,7 +101,7 @@ public class AuthService {
         // Génération du token de vérification
         String eventId = UUID.randomUUID().toString();
         String tokenId = UUID.randomUUID().toString();
-        String tokenClear = UUID.randomUUID().toString(); // The secret in the email
+        String tokenClear = UUID.randomUUID().toString(); 
         String tokenHash = passwordEncoder.encode(tokenClear);
 
         VerificationToken verificationToken = new VerificationToken(
@@ -118,20 +118,9 @@ public class AuthService {
                 "occurredAt", LocalDateTime.now().toString());
         rabbitTemplate.convertAndSend(exchange, userRegisteredRoutingKey, eventData);
         logger.info("[SERVICE-AUTH] Published UserRegisteredEvent for email: {}", email);
-        // Génération du JWT pour le nouvel utilisateur
-        logger.info("[SERVICE-AUTH] Generating new JWT for user ID: {}", user.getId());
-        String token = jwtUtil.generateToken(
-                user.getEmail(),
-                Map.of(
-                        "userId", user.getId(),
-                        "permissions", user.getPermissions().stream().map(Permission::getName).toArray()));
-        java.util.Date expiresAt = jwtUtil.extractExpiration(token);
         
-        // Sauvegarde du JWT en base de données
-        saveJwtToken(token, user.getEmail(), user.getId(), expiresAt);
-        
-        logger.info("[SERVICE-AUTH] JWT generated and saved, expires at: {}", expiresAt);
-        return token;
+        logger.info("[SERVICE-AUTH] Registration complete, awaiting email verification for: {}", email);
+        return "Registration successful. Please check your email to verify your account.";
     }
 
     /**
@@ -154,6 +143,10 @@ public class AuthService {
         if (!user.isEnabled()) {
             logger.warn("[SERVICE-AUTH] Login failed: Account disabled for email: {}", email);
             throw new RuntimeException("Account is disabled");
+        }
+        if (!user.isVerified()) {
+            logger.warn("[SERVICE-AUTH] Login failed: Email not verified for: {}", email);
+            throw new RuntimeException("Email not verified. Please check your inbox.");
         }
         logger.info("[SERVICE-AUTH] Generating new JWT");
         String token = jwtUtil.generateToken(
@@ -251,7 +244,8 @@ public class AuthService {
     }
 
     // Vérifie un token de vérification d'email et active l'utilisateur si le token est valide.
-    public void verifyEmail(String tokenId, String tokenClear) {
+    // Retourne un JWT pour connecter l'utilisateur automatiquement.
+    public String verifyEmail(String tokenId, String tokenClear) {
         VerificationToken token = tokenRepository.findByTokenId(tokenId)
                 .orElseThrow(() -> new RuntimeException("Invalid token"));
 
@@ -266,17 +260,26 @@ public class AuthService {
         User user = userRepository.findById(token.getUserId())
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        // Idempotent: if already verified, just clean up the token
-        if (user.isVerified()) {
-            tokenRepository.delete(token);
-            logger.info("[SERVICE-AUTH] User {} already verified (idempotent)", user.getId());
-            return;
+        // Idempotent : si déjà vérifié, on nettoie le token et on retourne un nouveau JWT
+        if (!user.isVerified()) {
+            user.setVerified(true);
+            userRepository.save(user);
         }
-
-        user.setVerified(true);
-        userRepository.save(user);
         tokenRepository.delete(token);
 
         logger.info("[SERVICE-AUTH] Email verified successfully for user ID: {}", user.getId());
+        
+        // Génération du JWT pour connecter automatiquement l'utilisateur
+        String jwtToken = jwtUtil.generateToken(
+                user.getEmail(),
+                Map.of(
+                        "userId", user.getId(),
+                        "permissions", user.getPermissions().stream().map(Permission::getName).toArray()));
+        
+        java.util.Date expiresAt = jwtUtil.extractExpiration(jwtToken);
+        saveJwtToken(jwtToken, user.getEmail(), user.getId(), expiresAt);
+        
+        logger.info("[SERVICE-AUTH] JWT generated after email verification for user ID: {}", user.getId());
+        return jwtToken;
     }
 }
