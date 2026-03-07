@@ -27,13 +27,13 @@ public class RabbitMQConfig {
     @Value("${app.mq.rk.emailVerified}")
     private String emailVerifiedRoutingKey;
 
-    // Exchange principal pour les événements d'authentification 
+    // Exchange principal pour les événements d'authentification
     @Bean
     public TopicExchange authExchange() {
         return new TopicExchange(exchange);
     }
 
-    // Queue des inscriptions avec redirection vers DLQ en cas d'échec 
+    // Queue des inscriptions avec redirection vers DLQ en cas d'échec
     @Bean
     public Queue userRegisteredQueue() {
         return QueueBuilder.durable("notification.user-registered")
@@ -42,25 +42,25 @@ public class RabbitMQConfig {
                 .build();
     }
 
-    // Exchange pour les Dead Letter Queues (messages en échec) 
+    // Exchange pour les Dead Letter Queues (messages en échec)
     @Bean
     public TopicExchange dlqExchange() {
         return new TopicExchange("auth.events.dlq");
     }
 
-    // Queue de stockage des messages échoués pour débogage 
+    // Queue de stockage des messages échoués pour débogage
     @Bean
     public Queue dlqQueue() {
         return QueueBuilder.durable("notification.user-registered.dlq").build();
     }
 
-    // Liaison entre la DLQ et son exchange avec la routing key "dead-letter" 
+    // Liaison entre la DLQ et son exchange avec la routing key "dead-letter"
     @Bean
     public Binding dlqBinding(Queue dlqQueue, TopicExchange dlqExchange) {
         return BindingBuilder.bind(dlqQueue).to(dlqExchange).with("dead-letter");
     }
 
-    // Liaison entre la queue d'inscription et l'exchange principal 
+    // Liaison entre la queue d'inscription et l'exchange principal
     @Bean
     public Binding userRegisteredBinding(Queue userRegisteredQueue, TopicExchange authExchange) {
         return BindingBuilder.bind(userRegisteredQueue).to(authExchange).with(userRegisteredRoutingKey);
@@ -68,7 +68,8 @@ public class RabbitMQConfig {
 
     /**
      * Convertisseur de messages JSON utilisant Jackson.
-     * Le module JavaTimeModule permet la sérialisation correcte des types Java 8 Date/Time
+     * Le module JavaTimeModule permet la sérialisation correcte des types Java 8
+     * Date/Time
      * (LocalDateTime, Instant, etc.) dans les messages RabbitMQ.
      */
     @Bean

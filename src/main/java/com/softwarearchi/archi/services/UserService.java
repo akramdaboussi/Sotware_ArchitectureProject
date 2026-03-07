@@ -17,12 +17,14 @@ import java.util.List;
 
 /**
  * Service de gestion des utilisateurs.
- * Gère la création d'utilisateurs, la récupération, le hachage des mots de passe et la gestion des permissions.
+ * Gère la création d'utilisateurs, la récupération, le hachage des mots de
+ * passe et la gestion des permissions.
  */
 @Service
 public class UserService implements UserDetailsService {
-    
+
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+
     @Override
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
         User user = findByEmail(email);
@@ -36,7 +38,7 @@ public class UserService implements UserDetailsService {
                 .accountLocked(!user.isEnabled())
                 .build();
     }
-    
+
     private static final Logger logger = LoggerFactory.getLogger(UserService.class);
     private final UserRepository userRepository;
     private final PermissionRepository permissionRepository;
@@ -46,7 +48,8 @@ public class UserService implements UserDetailsService {
         this.permissionRepository = permissionRepository;
     }
 
-    // Crée et sauvegarde un nouvel utilisateur (le mot de passe est haché avant la sauvegarde)
+    // Crée et sauvegarde un nouvel utilisateur (le mot de passe est haché avant la
+    // sauvegarde)
     public User createUser(User user) {
         logger.info("[SERVICE-USER] Creating user: {}", user.getEmail());
 
@@ -66,7 +69,7 @@ public class UserService implements UserDetailsService {
     // Trouve un utilisateur par ID. Retourne null si non trouvé.
     public User findById(Long id) {
         logger.debug("[SERVICE-USER] Finding user by ID: {}", id);
-        return userRepository.findById(id).orElse(null);  
+        return userRepository.findById(id).orElse(null);
     }
 
     // Vérifie si un utilisateur existe avec l'email donné.

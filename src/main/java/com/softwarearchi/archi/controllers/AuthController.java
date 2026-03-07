@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.*;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * Contrôleur REST pour les endpoints d'authentification.
@@ -60,7 +61,8 @@ public class AuthController {
 
             logger.info("[CONTROLLER] Registration successful, awaiting email verification");
 
-            // Retour de la réponse (sans JWT, l'utilisateur doit d'abord vérifier son email)
+            // Retour de la réponse (sans JWT, l'utilisateur doit d'abord vérifier son
+            // email)
             Map<String, Object> response = new HashMap<>();
             response.put("email", email);
             response.put("firstName", firstName);
@@ -120,7 +122,8 @@ public class AuthController {
 
     /**
      * POST /api/auth/logout
-     * Déconnexion de l'utilisateur (JWT : simplement supprimer le token côté client)
+     * Déconnexion de l'utilisateur (JWT : simplement supprimer le token côté
+     * client)
      */
     @PostMapping("/logout")
     public ResponseEntity<Map<String, Object>> logout(@RequestHeader("Authorization") String authHeader) {
@@ -158,7 +161,8 @@ public class AuthController {
             User user = authService.getUserByToken(token);
             logger.info("[CONTROLLER] User info retrieved: email={}", user.getEmail());
 
-            // Création de la réponse utilisateur (exclut les champs sensibles comme le mot de passe)
+            // Création de la réponse utilisateur (exclut les champs sensibles comme le mot
+            // de passe)
             Map<String, Object> response = new HashMap<>();
             response.put("id", user.getId());
             response.put("firstName", user.getFirstName());
@@ -167,6 +171,9 @@ public class AuthController {
             response.put("phoneNumber", user.getPhoneNumber());
             response.put("enabled", user.isEnabled());
             response.put("verified", user.isVerified());
+            response.put("permissions", user.getPermissions().stream()
+                    .map(p -> p.getName())
+                    .collect(Collectors.toList()));
 
             return ResponseEntity.ok(response);
 
@@ -209,7 +216,8 @@ public class AuthController {
      * Retourne 200 si valide, 401 sinon
      */
     @GetMapping("/validate")
-    public ResponseEntity<Void> validateToken(@RequestHeader(value = "Authorization", required = false) String authHeader) {
+    public ResponseEntity<Void> validateToken(
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
         logger.debug("[CONTROLLER] Token validation request (NGINX auth_request)");
 
         try {
@@ -217,7 +225,7 @@ public class AuthController {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
             }
             String token = extractToken(authHeader);
-            
+
             // Vérifie que le token est valide et non révoqué
             if (authService.isTokenValid(token)) {
                 return ResponseEntity.ok().build();

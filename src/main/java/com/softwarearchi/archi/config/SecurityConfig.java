@@ -26,7 +26,8 @@ import org.springframework.security.web.SecurityFilterChain;
  * Classe de configuration Spring Security.
  * Configure la sécurité HTTP, le filtre d'authentification JWT et les règles
  * d'accès aux endpoints.
- * Le filtre vérifie également que le token existe en base de données (non révoqué).
+ * Le filtre vérifie également que le token existe en base de données (non
+ * révoqué).
  */
 @Configuration
 @EnableWebSecurity
@@ -37,7 +38,7 @@ public class SecurityConfig {
     @Autowired
     private UserService userService;
     @Autowired
-    @Lazy  // Évite la dépendance circulaire
+    @Lazy // Évite la dépendance circulaire
     private AuthService authService;
 
     @Bean
@@ -55,10 +56,13 @@ public class SecurityConfig {
                                 "/api/auth/login",
                                 "/api/auth/register",
                                 "/api/auth/verify",
+                                "/validate",
+                                "/validate_email",
                                 "/h2-console/**")
                         .permitAll()
                         .anyRequest().authenticated())
-                .addFilterBefore(new JwtAuthFilter(jwtUtil, userService, authService), UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(new JwtAuthFilter(jwtUtil, userService, authService),
+                        UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
 
