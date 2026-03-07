@@ -10,6 +10,7 @@ import com.softwarearchi.archi.models.User;
 import com.softwarearchi.archi.repository.PermissionRepository;
 import com.softwarearchi.archi.repository.UserRepository;
 import com.softwarearchi.archi.services.UserService;
+import org.springframework.beans.factory.annotation.Value;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -27,9 +28,12 @@ public class DataInitializer implements CommandLineRunner {
     private final UserRepository userRepository;
     private final UserService userService;
 
-    // Identifiants du super admin par défaut (à changer en production !)
-    private static final String ADMIN_EMAIL = "admin@admin.com";
-    private static final String ADMIN_PASSWORD = "admin123";
+    // Identifiants du super admin (configurés via variables d'environnement ou application.properties)
+    @Value("${app.admin.email:admin@admin.com}")
+    private String adminEmail;
+
+    @Value("${app.admin.password:admin123}")
+    private String adminPassword;
 
     public DataInitializer(PermissionRepository permissionRepository, UserRepository userRepository, UserService userService) {
         this.permissionRepository = permissionRepository;
@@ -64,14 +68,14 @@ public class DataInitializer implements CommandLineRunner {
 
     // Crée un super admin avec toutes les permissions s'il n'existe pas
     private void createSuperAdminIfNotExists() {
-        if (userRepository.findByEmail(ADMIN_EMAIL).isEmpty()) {
+        if (userRepository.findByEmail(adminEmail).isEmpty()) {
             logger.info("[INIT] Creating super admin user...");
 
             User admin = new User();
             admin.setFirstName("Super");
             admin.setLastName("Admin");
-            admin.setEmail(ADMIN_EMAIL);
-            admin.setPassword(userService.hashPassword(ADMIN_PASSWORD));
+            admin.setEmail(adminEmail);
+            admin.setPassword(userService.hashPassword(adminPassword));
             admin.setEnabled(true);
             admin.setVerified(true);
 
@@ -80,7 +84,7 @@ public class DataInitializer implements CommandLineRunner {
             admin.setPermissions(allPermissions);
 
             userRepository.save(admin);
-            logger.info("[INIT] Super admin created: {} (password: {})", ADMIN_EMAIL, ADMIN_PASSWORD);
+            logger.info("[INIT] Super admin created: {}", adminEmail);
             logger.warn("[INIT] ⚠️  CHANGEZ LE MOT DE PASSE ADMIN EN PRODUCTION !");
         } else {
             logger.debug("[INIT] Super admin already exists");
