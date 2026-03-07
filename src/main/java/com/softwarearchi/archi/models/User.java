@@ -31,7 +31,7 @@ public class User {
     @Column(unique = true, nullable = false)
     private String email;
 
-    // Mot de passe haché en SHA-256 
+    // Mot de passe haché en BCrypt
     @Column(nullable = false)
     private String password;
 

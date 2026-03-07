@@ -23,6 +23,7 @@ import com.softwarearchi.archi.repository.JwtTokenRepository;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.transaction.annotation.Transactional;
 import java.time.ZoneId;
 
 /**
@@ -62,9 +63,11 @@ public class AuthService {
 
     /**
      * Inscrit un nouvel utilisateur dans le système.
+     * Transaction : si le token de vérification échoue, l'utilisateur est rollback.
      * 
      * @return Message demandant la vérification de l'email.
      */
+    @Transactional
     public String register(String firstName, String lastName, String email,
             String password, String phoneNumber) {
         logger.info("[SERVICE-AUTH] Starting registration for email: {}", email);
@@ -125,9 +128,11 @@ public class AuthService {
 
     /**
      * Authentifie un utilisateur avec les identifiants fournis.
+     * Transaction : garantit la cohérence entre génération et sauvegarde du JWT.
      * 
      * @return Le token JWT d'authentification en cas de succès.
      */
+    @Transactional
     public String login(String email, String password) {
         // La tentative de connexion est loggée dans AuthController
         User user = userService.findByEmail(email);
@@ -164,6 +169,7 @@ public class AuthService {
     }
 
     // Déconnecte l'utilisateur en révoquant le token dans la base de données
+    @Transactional
     public void logout(String token) {
         int revoked = jwtTokenRepository.revokeToken(token);
         if (revoked > 0) {
@@ -174,11 +180,13 @@ public class AuthService {
     }
 
     // Vérifie si un token JWT est valide (existe en base et non révoqué)
+    @Transactional(readOnly = true)
     public boolean isTokenValid(String token) {
         return jwtTokenRepository.existsByTokenAndRevokedFalse(token);
     }
 
     // Sauvegarde un token JWT en base de données
+    @Transactional
     private void saveJwtToken(String token, String email, Long userId, java.util.Date expiresAt) {
         LocalDateTime expiresAtLocal = expiresAt.toInstant()
                 .atZone(ZoneId.systemDefault())
@@ -189,12 +197,14 @@ public class AuthService {
     }
 
     // Révoque tous les tokens d'un utilisateur (logout de toutes les sessions)
+    @Transactional
     public void logoutAllSessions(Long userId) {
         int revoked = jwtTokenRepository.revokeAllUserTokens(userId);
         logger.info("[SERVICE-AUTH] Revoked {} tokens for user ID: {}", revoked, userId);
     }
 
     // Récupère un utilisateur par son token d'authentification (JWT).
+    @Transactional(readOnly = true)
     public User getUserByToken(String token) {
         try {
             String email = jwtUtil.extractUsername(token);
@@ -222,7 +232,11 @@ public class AuthService {
                 });
     }
 
-    // Supprime le compte de l'utilisateur (auto-résiliation)
+    /**
+     * Supprime le compte de l'utilisateur (auto-résiliation).
+     * Transaction : révocation des tokens + suppression utilisateur atomiquement.
+     */
+    @Transactional
     public void deleteAccount(String token) {
         User user = getUserByToken(token);
         
@@ -243,8 +257,12 @@ public class AuthService {
         logger.info("[SERVICE-AUTH] Account deleted for user ID: {}", user.getId());
     }
 
-    // Vérifie un token de vérification d'email et active l'utilisateur si le token est valide.
-    // Retourne un JWT pour connecter l'utilisateur automatiquement.
+    /**
+     * Vérifie un token de vérification d'email et active l'utilisateur si le token est valide.
+     * Transaction : garantit la cohérence entre vérification, suppression du token et génération JWT.
+     * Retourne un JWT pour connecter l'utilisateur automatiquement.
+     */
+    @Transactional
     public String verifyEmail(String tokenId, String tokenClear) {
         VerificationToken token = tokenRepository.findByTokenId(tokenId)
                 .orElseThrow(() -> new RuntimeException("Invalid token"));
