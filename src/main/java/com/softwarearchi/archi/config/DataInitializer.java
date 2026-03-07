@@ -85,7 +85,6 @@ public class DataInitializer implements CommandLineRunner {
 
             userRepository.save(admin);
             logger.info("[INIT] Super admin created: {}", adminEmail);
-            logger.warn("[INIT] ⚠️  CHANGEZ LE MOT DE PASSE ADMIN EN PRODUCTION !");
         } else {
             logger.debug("[INIT] Super admin already exists");
         }

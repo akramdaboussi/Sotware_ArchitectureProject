@@ -1,6 +1,6 @@
 # Système d'Authentification - Software Architecture - Groupe 11
-Belhout Oussama
-Daboussi Akram
+- Belhout Oussama
+- Daboussi Akram
 
 ---
 
@@ -133,6 +133,25 @@ Ce compte permet de :
 - Voir tous les utilisateurs (`GET /api/admin/users`)
 - Ajouter des permissions (`POST /api/admin/add-permission`)
 - Retirer des permissions (`POST /api/admin/remove-permission`)
+
+### Configuration production (variables d'environnement)
+
+Les secrets sont configurables via variables d'environnement pour la production :
+
+```bash
+# Clé secrète JWT (obligatoire en production)
+export JWT_SECRET="cle-secrete-256-bits-en-base64"
+
+# Identifiants admin (optionnel, valeurs par défaut sinon)
+export ADMIN_EMAIL="admin@entreprise.com"
+export ADMIN_PASSWORD="mot-de-passe"
+```
+
+| Variable | Description | Valeur par défaut |
+|----------|-------------|-------------------|
+| `JWT_SECRET` | Clé de signature JWT (Base64) | Clé de démo (non sécurisée) |
+| `ADMIN_EMAIL` | Email du super admin | `admin@admin.com` |
+| `ADMIN_PASSWORD` | Mot de passe du super admin | `admin123` |
 
 ---
 
@@ -270,6 +289,7 @@ Le système implémente une vérification d'email découplée via RabbitMQ :
    └─▶ Génère tokenId (public) + tokenClear (secret)
    └─▶ Stocke tokenId + hash(tokenClear) en base
    └─▶ Publie UserRegisteredEvent sur RabbitMQ
+   └─▶ Retourne un message (PAS de JWT)
 
 2. RabbitMQ
    └─▶ Exchange "auth.events" route vers queue "notification.user-registered"
@@ -285,6 +305,11 @@ Le système implémente une vérification d'email découplée via RabbitMQ :
    └─▶ Vérifie expiration (15 min) et hash BCrypt
    └─▶ Passe l'utilisateur en verified=true
    └─▶ Supprime le token (usage unique)
+   └─▶ Génère et retourne un JWT (connexion automatique)
+
+5. POST /login (si l'utilisateur revient plus tard)
+   └─▶ Vérifie que l'email est vérifié (verified=true)
+   └─▶ Si non vérifié → erreur "Email not verified"
 ```
 
 **Sécurité du token** :
@@ -337,14 +362,12 @@ Le système implémente un contrôle d'accès granulaire par permissions :
 
 ### 4. Hachage sécurisé des mots de passe
 
-Deux algorithmes de hachage sont utilisés selon le contexte :
+Le hachage **BCrypt** est utilisé pour tous les secrets :
 
 | Usage | Algorithme | Justification |
 |-------|------------|---------------|
-| Mots de passe utilisateur | SHA-256 + Base64 | Simple, intégré à Java |
-| Tokens de vérification | BCrypt | Résistant aux attaques par force brute |
-
-> **Note** : En production, il faudrait utiliser BCrypt pour les mots de passe également.
+| Mots de passe utilisateur | BCrypt | Résistant aux attaques par force brute, salt automatique |
+| Tokens de vérification | BCrypt | Même niveau de sécurité |
 
 ---
 
@@ -364,7 +387,7 @@ Content-Type: application/json
   "phoneNumber": "0612345678"
 }
 
-→ 201 Created { "token": "eyJhbG...", "email": "john@example.com" }
+→ 201 Created { "message": "Registration successful. Please check your email...", "email": "john@example.com", "verified": false }
 ```
 
 ```http
@@ -382,7 +405,14 @@ Content-Type: application/json
 ```http
 GET /api/auth/verify?tokenId=abc123&t=secretToken
 
-→ 200 OK { "message": "Email successfully verified!" }
+→ 200 OK { "message": "Email successfully verified!", "token": "eyJhbG..." }
+```
+
+```http
+GET /api/auth/validate
+Authorization: Bearer eyJhbG...
+
+→ 200 OK (token valide) ou 401 Unauthorized (token invalide/révoqué)
 ```
 
 ### Endpoints authentifiés (JWT requis)
@@ -564,7 +594,7 @@ Pour importer dans Postman, créer une collection avec les requêtes suivantes :
 users (
   id            BIGINT PRIMARY KEY AUTO_INCREMENT,
   email         VARCHAR(255) UNIQUE NOT NULL,
-  password      VARCHAR(255) NOT NULL,  -- Hash SHA-256
+  password      VARCHAR(255) NOT NULL,  -- Hash BCrypt
   first_name    VARCHAR(255) NOT NULL,
   last_name     VARCHAR(255) NOT NULL,
   phone_number  VARCHAR(255),
@@ -631,10 +661,17 @@ INFO  [SERVICE-AUTH] Starting registration for email: john@example.com
 INFO  [SERVICE-USER] Creating user: john@example.com
 INFO  [SERVICE-USER] User saved with ID: 1
 INFO  [SERVICE-AUTH] Published UserRegisteredEvent for email: john@example.com
-INFO  [SERVICE-AUTH] JWT generated, expires at: 2026-02-06T18:51:47
-INFO  [CONTROLLER] Registration successful
+INFO  [SERVICE-AUTH] Registration complete, awaiting email verification for: john@example.com
+INFO  [CONTROLLER] Registration successful, awaiting email verification
 INFO  [NOTIFICATION] Received UserRegistered event: abc-123
 INFO  [NOTIFICATION] Verification email sent successfully to: john@example.com
+```
+
+**Exemple de trace de vérification d'email** :
+```
+INFO  [CONTROLLER] Email verification request received for token
+INFO  [SERVICE-AUTH] Email verified successfully for user ID: 1
+INFO  [SERVICE-AUTH] JWT generated after email verification for user ID: 1
 ```
 
 **Exemple de login échoué (mauvais mot de passe)** :
@@ -644,6 +681,16 @@ INFO  [SERVICE-AUTH] Login attempt for email: john@example.com
 DEBUG [SERVICE-USER] Verifying password
 DEBUG [SERVICE-USER] Password verification failed
 WARN  [SERVICE-AUTH] Login failed: Invalid password
+WARN  [CONTROLLER] Login failed
+```
+
+**Exemple de login échoué (email non vérifié)** :
+```
+INFO  [CONTROLLER] Login request received
+INFO  [SERVICE-AUTH] Login attempt for email: john@example.com
+DEBUG [SERVICE-USER] Verifying password
+DEBUG [SERVICE-USER] Password verification successful
+WARN  [SERVICE-AUTH] Login failed: Email not verified for: john@example.com
 WARN  [CONTROLLER] Login failed
 ```
 
