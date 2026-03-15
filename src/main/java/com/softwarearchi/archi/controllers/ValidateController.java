@@ -28,7 +28,7 @@ public class ValidateController {
      * Validates the Bearer JWT from the Authorization header.
      */
     @GetMapping("/validate")
-    public ResponseEntity<Void> validate(
+    public ResponseEntity<Void> validate(                      
             @RequestHeader(value = "Authorization", required = false) String authHeader,
             @RequestHeader(value = "X-Target-Service", required = false) String targetService) {
 

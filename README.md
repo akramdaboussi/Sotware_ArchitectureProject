@@ -2,6 +2,8 @@
 - Belhout Oussama
 - Daboussi Akram
 
+Discovery service - eurika
+
 ---
 
 ## Table des matières
