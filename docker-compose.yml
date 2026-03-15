@@ -43,8 +43,6 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: auth-service
-    ports:
-      - "8080:8080" # direct access for dev/debug
     environment:
       - SPRING_RABBITMQ_HOST=rabbitmq
       - SPRING_MAIL_HOST=mailhog

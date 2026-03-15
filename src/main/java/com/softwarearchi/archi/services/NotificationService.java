@@ -28,8 +28,8 @@ public class NotificationService {
             String tokenId = (String) event.get("tokenId");
             String tokenClear = (String) event.get("tokenClear");
 
-            // Generate Verification Link (assuming localhost:8080 for dev)
-            String verifyLink = String.format("http://localhost:8080/api/auth/verify?tokenId=%s&t=%s", tokenId,
+            // Generate Verification Link pointing to Nginx (port 80)
+            String verifyLink = String.format("http://localhost/api/auth/verify?tokenId=%s&t=%s", tokenId,
                     tokenClear);
 
             // Send Email via MailHog

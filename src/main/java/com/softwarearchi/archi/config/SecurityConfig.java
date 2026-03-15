@@ -57,6 +57,7 @@ public class SecurityConfig {
                                 "/api/auth/register",
                                 "/api/auth/verify",
                                 "/validate",
+                                "/favicon.ico",
                                 "/validate_email",
                                 "/h2-console/**")
                         .permitAll()
