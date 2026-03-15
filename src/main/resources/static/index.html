@@ -1,404 +1,203 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AuthSystem</title>
-    <meta name="description" content="Secure authentication and user management platform.">
+    <title>ProM - Premium Project & Task Management</title>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
+    <!-- Font Awesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
-
 <body>
-    <canvas id="canvas"></canvas>
-
-    <!-- AUTH SCREENS -->
-    <div class="auth-container" id="authContainer">
-
-        <div id="loginView" class="view active">
-            <div class="glass-card">
-                <h1>Sign In</h1>
-                <p class="subtitle">Enter your credentials to continue</p>
-                <form id="loginForm" class="form">
-                    <div class="field">
-                        <label class="field-label" for="loginEmail">Email</label>
-                        <input type="email" id="loginEmail" placeholder="you@example.com" required>
-                    </div>
-                    <div class="field">
-                        <label class="field-label" for="loginPassword">Password</label>
-                        <input type="password" id="loginPassword" placeholder="••••••••" required>
-                    </div>
-                    <button type="submit" class="btn btn-primary" id="loginBtn">Sign In</button>
-                </form>
-                <p class="toggle-text">No account? <a href="#" id="showRegister">Create one</a></p>
-                <div id="loginError" class="error-message"></div>
+    <div class="background-animation"></div>
+    
+    <!-- Auth Container -->
+    <div id="auth-view" class="view active">
+        <div class="auth-card glass-panel">
+            <div class="brand">
+                <i class="fa-solid fa-layer-group brand-icon"></i>
+                <h2>ProM TaskSync</h2>
             </div>
-        </div>
-
-        <div id="registerView" class="view">
-            <div class="glass-card">
-                <h1>Create Account</h1>
-                <p class="subtitle">Fill in the details below to register</p>
-                <form id="registerForm" class="form">
-                    <div class="field-row">
-                        <div class="field">
-                            <label class="field-label" for="regFirstName">First Name</label>
-                            <input type="text" id="regFirstName" placeholder="John" required>
-                        </div>
-                        <div class="field">
-                            <label class="field-label" for="regLastName">Last Name</label>
-                            <input type="text" id="regLastName" placeholder="Doe" required>
-                        </div>
-                    </div>
-                    <div class="field">
-                        <label class="field-label" for="regEmail">Email</label>
-                        <input type="email" id="regEmail" placeholder="you@example.com" required>
-                    </div>
-                    <div class="field">
-                        <label class="field-label" for="regPhone">Phone <span class="optional">(optional)</span></label>
-                        <input type="tel" id="regPhone" placeholder="+33 6 00 00 00 00">
-                    </div>
-                    <div class="field">
-                        <label class="field-label" for="regPassword">Password</label>
-                        <input type="password" id="regPassword" placeholder="••••••••" required>
-                    </div>
-                    <button type="submit" class="btn btn-primary" id="registerBtn">Create Account</button>
-                </form>
-                <p class="toggle-text">Already registered? <a href="#" id="showLogin">Sign in</a></p>
-                <div id="registerError" class="error-message"></div>
-            </div>
-        </div>
-
-        <div id="checkEmailView" class="view">
-            <div class="glass-card" style="text-align:center;">
-                <div class="status-icon status-icon--info">@</div>
-                <h1>Verify Your Email</h1>
-                <p class="subtitle">A verification link has been sent to:</p>
-                <p id="registeredEmail" class="highlight-email"></p>
-                <div class="info-box">
-                    <p>Click the link in your inbox to activate your account.</p>
-                    <p class="note">Link expires in 15 minutes &mdash; check MailHog at <a href="http://localhost:8025"
-                            target="_blank" class="link-accent">localhost:8025</a></p>
+            
+            <div id="auth-message" class="alert hidden"></div>
+            
+            <!-- Login Form -->
+            <form id="login-form">
+                <div class="input-group">
+                    <label>Email</label>
+                    <input type="email" id="login-email" required placeholder="Enter your email">
                 </div>
-                <button id="backToLoginBtn" class="btn btn-ghost" style="margin-top:1.5rem;">Back to Sign In</button>
-            </div>
+                <div class="input-group">
+                    <label>Password</label>
+                    <input type="password" id="login-password" required placeholder="Enter your password">
+                </div>
+                <button type="submit" class="btn btn-primary w-100">Sign In</button>
+                <p class="toggle-auth">Don't have an account? <a href="#" id="go-to-register">Sign up</a></p>
+            </form>
+            
+            <!-- Register Form -->
+            <form id="register-form" class="hidden">
+                <div class="input-row">
+                    <div class="input-group">
+                        <label>First Name</label>
+                        <input type="text" id="reg-firstName" required>
+                    </div>
+                    <div class="input-group">
+                        <label>Last Name</label>
+                        <input type="text" id="reg-lastName" required>
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label>Email</label>
+                    <input type="email" id="reg-email" required>
+                </div>
+                <div class="input-group">
+                    <label>Password</label>
+                    <input type="password" id="reg-password" required>
+                </div>
+                <div class="input-group">
+                    <label>Phone</label>
+                    <input type="text" id="reg-phone">
+                </div>
+                <button type="submit" class="btn btn-primary w-100">Create Account</button>
+                <p class="toggle-auth">Already have an account? <a href="#" id="go-to-login">Log in</a></p>
+            </form>
         </div>
-
-        <div id="verifyResultView" class="view">
-            <div class="glass-card" style="text-align:center;">
-                <div id="verifyIcon" class="status-icon"></div>
-                <h1 id="verifyTitle"></h1>
-                <p id="verifyMessage" class="subtitle"></p>
-                <button id="verifyToLoginBtn" class="btn btn-primary" style="margin-top:1.5rem;">Go to Sign In</button>
-            </div>
-        </div>
-
     </div>
 
-    <!-- APP (sidebar layout) -->
-    <div class="app-layout" id="appLayout" style="display:none;">
-
-        <aside class="sidebar">
-            <div class="sidebar-header">
-                <div class="sidebar-brand">AuthSystem</div>
+    <!-- Main App Dashboard -->
+    <div id="app-view" class="view hidden">
+        <aside class="sidebar glass-panel">
+            <div class="brand">
+                <i class="fa-solid fa-layer-group brand-icon"></i>
+                <h2>ProM</h2>
             </div>
-
-            <nav class="sidebar-nav">
-                <span class="nav-label">Account</span>
-                <button class="nav-item active" data-tab="profile" id="navProfile">
-                    <span class="nav-icon">
-                        <svg viewBox="0 0 20 20" fill="currentColor">
-                            <path d="M10 10a4 4 0 100-8 4 4 0 000 8zm-7 8a7 7 0 1114 0H3z" />
-                        </svg>
-                    </span>
-                    <span>Profile</span>
-                </button>
-
-                <span class="nav-label admin-only" id="labelManagement" style="display:none;">Administration</span>
-                <button class="nav-item admin-only" data-tab="users" id="navUsers" style="display:none;">
-                    <span class="nav-icon">
-                        <svg viewBox="0 0 20 20" fill="currentColor">
-                            <path
-                                d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v1h8v-1zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-1a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v1h-3zM4.75 12.094A5.973 5.973 0 004 15v1H1v-1a3 3 0 013.75-2.906z" />
-                        </svg>
-                    </span>
-                    <span>Users</span>
-                    <span class="nav-badge" id="usersCountBadge"></span>
-                </button>
-                <button class="nav-item admin-only" data-tab="permissions" id="navPermissions" style="display:none;">
-                    <span class="nav-icon">
-                        <svg viewBox="0 0 20 20" fill="currentColor">
-                            <path fill-rule="evenodd"
-                                d="M18 8a6 6 0 01-7.743 5.743L10 14l-1 1-1 1H6v2H2v-4l4.257-4.257A6 6 0 1118 8zm-6-4a1 1 0 100 2 2 2 0 012 2 1 1 0 102 0 4 4 0 00-4-4z"
-                                clip-rule="evenodd" />
-                        </svg>
-                    </span>
-                    <span>Permissions</span>
-                </button>
-
-                <span class="nav-label" style="margin-top:1rem;">Microservices</span>
-                <button class="nav-item" data-tab="services" id="navServices">
-                    <span class="nav-icon">
-                        <svg viewBox="0 0 20 20" fill="currentColor">
-                            <path fill-rule="evenodd"
-                                d="M3 5a2 2 0 012-2h10a2 2 0 012 2v2a2 2 0 01-2 2H5a2 2 0 01-2-2V5zm0 8a2 2 0 012-2h10a2 2 0 012 2v2a2 2 0 01-2 2H5a2 2 0 01-2-2v-2z"
-                                clip-rule="evenodd" />
-                        </svg>
-                    </span>
-                    <span>Services A &amp; B</span>
-                </button>
+            
+            <div class="user-profile">
+                <div class="avatar" id="user-avatar">U</div>
+                <div class="user-info">
+                    <h4 id="user-name">Loading...</h4>
+                    <span id="user-role" class="badge"></span>
+                </div>
+            </div>
+            
+            <nav class="nav-menu">
+                <h3>Workspace</h3>
+                <ul id="project-list">
+                    <!-- Projects injected here -->
+                </ul>
+                <button id="btn-new-project" class="btn btn-ghost w-100"><i class="fa-solid fa-plus"></i> New Project</button>
             </nav>
-
+            
             <div class="sidebar-footer">
-                <div class="sidebar-user-meta" id="sidebarUserMini"></div>
-                <button class="btn btn-ghost-sm" id="logoutBtn">Sign Out</button>
+                <button id="btn-logout" class="btn btn-text"><i class="fa-solid fa-arrow-right-from-bracket"></i> Logout</button>
             </div>
         </aside>
-
+        
         <main class="main-content">
-
-            <!-- PROFILE TAB -->
-            <section class="tab-section active" id="tabProfile">
-                <div class="page-header">
-                    <h2>Profile</h2>
-                    <p class="page-desc">Your account details and settings</p>
+            <header class="top-bar">
+                <h1 id="current-project-title">Select a Project</h1>
+                <div class="header-actions" id="project-actions" style="display: none;">
+                    <button id="btn-add-task" class="btn btn-primary"><i class="fa-solid fa-plus"></i> Add Task</button>
+                    <!-- Only admin can delete -->
+                    <button id="btn-delete-project" class="btn btn-danger hidden" title="Delete Project"><i class="fa-solid fa-trash"></i></button>
                 </div>
-
-                <div class="content-grid">
-                    <div class="card" id="profileCard">
-                        <div class="card-header-row">
-                            <div class="avatar" id="profileAvatar"></div>
-                            <div>
-                                <div class="profile-name" id="profileFullName">Loading...</div>
-                                <div id="profileVerifiedBadge"></div>
-                            </div>
-                        </div>
-                        <div class="info-rows" id="profileInfoRows">
-                            <div class="skeleton-row"></div>
-                            <div class="skeleton-row"></div>
-                            <div class="skeleton-row"></div>
-                        </div>
+            </header>
+            
+            <div id="kanban-board" class="kanban-board" style="display: none;">
+                <!-- To Do Column -->
+                <div class="kanban-col glass-card" data-status="TODO">
+                    <div class="col-header">
+                        <h3>To Do <span class="count" id="count-todo">0</span></h3>
                     </div>
-
-                    <div class="card">
-                        <p class="card-label">Assigned Permissions</p>
-                        <div id="profilePermissions" class="perm-grid">
-                            <div class="skeleton-row"></div>
-                        </div>
+                    <div class="task-list" id="list-todo"></div>
+                </div>
+                
+                <!-- In Progress Column -->
+                <div class="kanban-col glass-card" data-status="IN_PROGRESS">
+                    <div class="col-header">
+                        <h3 class="text-blue">In Progress <span class="count" id="count-inprogress">0</span></h3>
                     </div>
+                    <div class="task-list" id="list-inprogress"></div>
                 </div>
-
-                <div class="danger-zone">
-                    <div>
-                        <p class="danger-title">Delete Account</p>
-                        <p class="danger-desc">Permanently removes your account and all associated data. This action is
-                            irreversible.</p>
+                
+                <!-- Done Column -->
+                <div class="kanban-col glass-card" data-status="DONE">
+                    <div class="col-header">
+                        <h3 class="text-green">Done <span class="count" id="count-done">0</span></h3>
                     </div>
-                    <button class="btn btn-danger" id="deleteAccountBtn">Delete Account</button>
+                    <div class="task-list" id="list-done"></div>
                 </div>
-            </section>
-
-            <!-- SERVICES TAB -->
-            <section class="tab-section" id="tabServices">
-                <div class="page-header">
-                    <h2>&#128256; Protected Services</h2>
-                    <p class="page-desc">All requests are validated by the Auth service via Nginx
-                        <code>auth_request</code> before being proxied.</p>
-                </div>
-                <div class="services-grid">
-                    <div class="service-card-pro">
-                        <div class="service-card-header">
-                            <span class="service-pill pill-a">Service A</span>
-                            <code class="route-pill">/a/</code>
-                        </div>
-                        <p class="service-card-desc">General data microservice. Provides products and health status.</p>
-                        <div class="service-btn-group">
-                            <button class="btn btn-service-pro" id="callServiceAHello">GET /a/hello</button>
-                            <button class="btn btn-service-pro" id="callServiceAData">GET /a/data</button>
-                        </div>
-                        <pre id="serviceAResult"
-                            class="service-output">— Hit a button to call Service A via Nginx —</pre>
-                    </div>
-                    <div class="service-card-pro">
-                        <div class="service-card-header">
-                            <span class="service-pill pill-b">Service B</span>
-                            <code class="route-pill">/b/</code>
-                        </div>
-                        <p class="service-card-desc">Analytics microservice. Returns platform metrics and counters.</p>
-                        <div class="service-btn-group">
-                            <button class="btn btn-service-pro" id="callServiceBHello">GET /b/hello</button>
-                            <button class="btn btn-service-pro" id="callServiceBData">GET /b/data</button>
-                        </div>
-                        <pre id="serviceBResult"
-                            class="service-output">— Hit a button to call Service B via Nginx —</pre>
-                    </div>
-                </div>
-                <div class="nginx-info-box">
-                    <strong>&#128266; How it works:</strong> Your JWT token is automatically forwarded by this app to
-                    Nginx.
-                    Nginx sends a subrequest to <code>/validate</code> on the Auth service. If valid → request is
-                    proxied to Service A or B. If missing/invalid → <code>403 Forbidden</code>.
-                </div>
-            </section>
-
-            <!-- USERS TAB -->
-            <section class="tab-section" id="tabUsers">
-                <div class="page-header">
-                    <h2>Users</h2>
-                    <p class="page-desc">Create, view and remove user accounts</p>
-                </div>
-
-                <div class="collapsible-panel" id="createUserPanel">
-                    <button class="panel-toggle" id="createUserToggle" type="button">
-                        <span>Add User</span>
-                        <span class="chevron" id="createUserArrow">&#9660;</span>
-                    </button>
-                    <div class="panel-body" id="createUserBody" style="display:none;">
-                        <form id="createUserForm" class="form">
-                            <div class="field-row">
-                                <div class="field">
-                                    <label class="field-label" for="cuFirstName">First Name</label>
-                                    <input type="text" id="cuFirstName" placeholder="John" required>
-                                </div>
-                                <div class="field">
-                                    <label class="field-label" for="cuLastName">Last Name</label>
-                                    <input type="text" id="cuLastName" placeholder="Doe" required>
-                                </div>
-                            </div>
-                            <div class="field-row">
-                                <div class="field">
-                                    <label class="field-label" for="cuEmail">Email</label>
-                                    <input type="email" id="cuEmail" placeholder="user@example.com" required>
-                                </div>
-                                <div class="field">
-                                    <label class="field-label" for="cuPhone">Phone <span
-                                            class="optional">(optional)</span></label>
-                                    <input type="tel" id="cuPhone" placeholder="+33 6 00 00 00 00">
-                                </div>
-                            </div>
-                            <div class="field">
-                                <label class="field-label" for="cuPassword">Password</label>
-                                <input type="password" id="cuPassword" placeholder="••••••••" required>
-                            </div>
-                            <div id="createUserError" class="error-message"></div>
-                            <button type="submit" class="btn btn-primary btn-sm" id="createUserBtn">Create User</button>
-                        </form>
-                    </div>
-                </div>
-
-                <div class="table-toolbar">
-                    <span class="table-meta" id="userCount"></span>
-                    <button class="btn btn-ghost-sm" id="refreshUsersBtn">Refresh</button>
-                </div>
-                <div class="table-wrap">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>ID</th>
-                                <th>Name</th>
-                                <th>Email</th>
-                                <th>Status</th>
-                                <th>Permissions</th>
-                                <th></th>
-                            </tr>
-                        </thead>
-                        <tbody id="usersTableBody">
-                            <tr>
-                                <td colspan="6" class="table-empty">Loading...</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </section>
-
-            <!-- PERMISSIONS TAB -->
-            <section class="tab-section" id="tabPermissions">
-                <div class="page-header">
-                    <h2>Permissions</h2>
-                    <p class="page-desc">Assign or revoke permissions for any user</p>
-                </div>
-
-                <div class="collapsible-panel">
-                    <div class="panel-toggle-static">Quick Assign</div>
-                    <div class="panel-body" style="display:block;">
-                        <form id="quickPermForm" class="form">
-                            <div class="field-row">
-                                <div class="field" style="flex:2;">
-                                    <label class="field-label" for="qpEmail">User Email</label>
-                                    <input type="email" id="qpEmail" placeholder="user@example.com" required>
-                                </div>
-                                <div class="field" style="flex:1;">
-                                    <label class="field-label" for="qpPermission">Permission</label>
-                                    <input type="text" id="qpPermission" placeholder="e.g. READ_USERS" required>
-                                </div>
-                            </div>
-                            <div class="btn-row">
-                                <button type="submit" class="btn btn-primary btn-sm" id="qpAddBtn">Add
-                                    Permission</button>
-                                <button type="button" class="btn btn-danger btn-sm" id="qpRemoveBtn">Remove
-                                    Permission</button>
-                            </div>
-                            <div id="quickPermMsg" class="error-message"></div>
-                        </form>
-                    </div>
-                </div>
-
-                <div class="table-toolbar" style="margin-top:1.5rem;">
-                    <span class="table-meta" id="permUserCount"></span>
-                    <button class="btn btn-ghost-sm" id="refreshPermBtn">Refresh</button>
-                </div>
-                <div class="table-wrap">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Name</th>
-                                <th>Email</th>
-                                <th>Permissions</th>
-                                <th></th>
-                            </tr>
-                        </thead>
-                        <tbody id="permTableBody">
-                            <tr>
-                                <td colspan="4" class="table-empty">Loading...</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </section>
-
+            </div>
+            
+            <div id="no-project-selected" class="empty-state">
+                <div class="empty-icon"><i class="fa-solid fa-folder-open"></i></div>
+                <h2>Ready to organize your work?</h2>
+                <p>Select an existing project from the sidebar or create a new one to get started.</p>
+            </div>
         </main>
     </div>
 
-    <!-- CONFIRM MODAL -->
-    <div class="modal-overlay" id="confirmModal" style="display:none;">
-        <div class="modal">
-            <p class="modal-title" id="modalTitle">Confirm Action</p>
-            <p class="modal-message" id="modalMessage"></p>
-            <div class="modal-actions">
-                <button class="btn btn-ghost-sm" id="modalCancelBtn">Cancel</button>
-                <button class="btn btn-danger btn-sm" id="modalConfirmBtn">Confirm</button>
+    <!-- Modals -->
+    <!-- Project Modal -->
+    <div id="modal-project" class="modal-overlay hidden">
+        <div class="modal glass-panel">
+            <div class="modal-header">
+                <h3>Create New Project</h3>
+                <button class="btn-close"><i class="fa-solid fa-xmark"></i></button>
             </div>
+            <form id="form-project">
+                <div class="input-group">
+                    <label>Project Name</label>
+                    <input type="text" id="proj-name" required placeholder="E.g., Website Redesign">
+                </div>
+                <div class="input-group">
+                    <label>Description</label>
+                    <textarea id="proj-desc" rows="3" placeholder="Brief details about the project..."></textarea>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-text btn-cancel">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create Project</button>
+                </div>
+            </form>
         </div>
     </div>
 
-    <!-- PERMISSION MODAL -->
-    <div class="modal-overlay" id="permissionModal" style="display:none;">
-        <div class="modal modal--wide">
-            <p class="modal-title">Manage Permissions</p>
-            <p class="modal-sub" id="permModalUser"></p>
-            <div class="perm-list" id="permCurrentList"></div>
-            <div class="perm-add-row">
-                <input type="text" id="permInputField" placeholder="Permission name (e.g. READ_USERS)">
-                <button class="btn btn-primary btn-sm" id="permAddBtn">Add</button>
+    <!-- Task Modal -->
+    <div id="modal-task" class="modal-overlay hidden">
+        <div class="modal glass-panel">
+            <div class="modal-header">
+                <h3>Add New Task</h3>
+                <button class="btn-close"><i class="fa-solid fa-xmark"></i></button>
             </div>
-            <div class="modal-actions" style="margin-top:1.25rem;">
-                <button class="btn btn-ghost-sm" id="permModalCloseBtn">Close</button>
-            </div>
+            <form id="form-task">
+                <div class="input-group">
+                    <label>Task Title</label>
+                    <input type="text" id="task-title" required placeholder="What needs to be done?">
+                </div>
+                <div class="input-group">
+                    <label>Description</label>
+                    <textarea id="task-desc" rows="3"></textarea>
+                </div>
+                <!-- Status Select -->
+                <div class="input-group">
+                    <label>Status</label>
+                    <select id="task-status">
+                        <option value="TODO">To Do</option>
+                        <option value="IN_PROGRESS">In Progress</option>
+                        <option value="DONE">Done</option>
+                    </select>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-text btn-cancel">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Task</button>
+                </div>
+            </form>
         </div>
     </div>
 
-    <div id="toastContainer"></div>
     <script src="app.js"></script>
 </body>
-
 </html>

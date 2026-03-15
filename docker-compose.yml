@@ -11,6 +11,7 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
       - archi-net
 
@@ -47,7 +48,7 @@ services:
     environment:
       - SPRING_RABBITMQ_HOST=rabbitmq
       - SPRING_MAIL_HOST=mailhog
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/archidb
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/auth_db
       - SPRING_DATASOURCE_USERNAME=archiuser
       - SPRING_DATASOURCE_PASSWORD=archipass
     depends_on:
@@ -60,7 +61,7 @@ services:
   # ── Service A ────────────────────────────────────────────────────────────
   service-a:
     build:
-      context: ../services/service-a
+      context: ./services/service-a
       dockerfile: Dockerfile
     container_name: service-a
     expose:
@@ -71,7 +72,7 @@ services:
   # ── Service B ────────────────────────────────────────────────────────────
   service-b:
     build:
-      context: ../services/service-b
+      context: ./services/service-b
       dockerfile: Dockerfile
     container_name: service-b
     expose:
