@@ -2,7 +2,24 @@
 - Belhout Oussama
 - Daboussi Akram
 
-Discovery service - eurika
+
+## Architecture microservices : Auth, Service A, Service B, Nginx
+
+Ce projet implémente une architecture microservices avec :
+- Un service d'authentification (auth-service)
+- Deux microservices métiers (service-a, service-b)
+- Un reverse proxy Nginx pour le routage et la sécurisation
+- RabbitMQ pour la communication asynchrone
+- MailHog pour l'email de développement
+- PostgreSQL (3 bases : auth_db, project_db, task_db)
+
+
+**Détail des services :**
+- **auth-service** : gestion de l’authentification, des utilisateurs, des permissions, et des emails de vérification.
+- **service-a** : microservice métier (exemple : gestion de projets ou d’entités métier, à adapter selon ton cas réel).
+- **service-b** : microservice métier (exemple : gestion de tâches ou d’une autre entité, à adapter selon ton cas réel).
+
+Le tout est orchestré via `docker-compose`.
 
 ---
 
@@ -39,7 +56,7 @@ Ce projet implémente un système d'authentification moderne suivant les bonnes 
 |-----------|-------------|---------|
 | **Framework** | Spring Boot | 3.4.1 |
 | **Sécurité** | Spring Security + JWT | - |
-| **Base de données** | H2 (fichier) | - |
+| **Base de données** | PostgreSQL (docker) | 15-alpine |
 | **ORM** | JPA / Hibernate | - |
 | **Messagerie** | RabbitMQ (AMQP) | 3.x |
 | **Email** | JavaMailSender + MailHog | - |
@@ -76,14 +93,21 @@ docker --version
 docker-compose --version
 ```
 
-### Démarrage
+
+### Démarrage (mode Docker recommandé)
 
 ```bash
-# 1. Démarrer les services externes (RabbitMQ + MailHog)
-docker-compose up -d
+# Lancer toute l'architecture (base de données, RabbitMQ, MailHog, Nginx, services)
+docker compose up --build
 
-# 2. Lancer l'application Spring Boot
-./mvnw spring-boot:run
+# Accéder à l'application via http://localhost (Nginx proxy)
+```
+
+Pour développement local d'un service seul :
+```bash
+# Lancer uniquement la base, RabbitMQ, MailHog
+docker compose up -d postgres rabbitmq mailhog
+# Puis lancer le service voulu en local (./mvnw spring-boot:run)
 ```
 
 ### Commandes utiles
@@ -104,22 +128,28 @@ docker-compose down -v
 # Lancer le JAR compilé (sans Maven)
 java -jar target/archi-0.0.1-SNAPSHOT.jar
 
-# Reset de la base de données H2
-rm -rf data/
+
+# Reset des données PostgreSQL (supprime le volume Docker)
+docker-compose down -v
 
 # Voir les logs des containers Docker
 docker-compose logs -f rabbitmq
 docker-compose logs -f mailhog
 ```
 
+
 ### URLs des services
 
 | Service | URL | Identifiants |
 |---------|-----|--------------|
-| **Application** | http://localhost:8080 | - |
-| **Console H2** | http://localhost:8080/h2-console | JDBC: `jdbc:h2:file:./data/authdb`, User: `sa` |
+| **Application (via Nginx)** | http://localhost | - |
+| **Auth API** | http://localhost/api/auth/ | - |
+| **Service A** | http://localhost/a/ | JWT requis |
+| **Service B** | http://localhost/b/ | JWT requis |
 | **MailHog** (emails) | http://localhost:8025 | - |
 | **RabbitMQ** (admin) | http://localhost:15672 | guest / guest |
+| **PostgreSQL** | localhost:5432 | archiuser / archipass |
+
 
 ### Compte administrateur
 
@@ -127,8 +157,8 @@ Un **super admin** est créé automatiquement au premier démarrage avec toutes 
 
 | Champ | Valeur |
 |-------|--------|
-| **Email** | `admin@admin.com` |
-| **Mot de passe** | `admin123` |
+| **Email** | `admin@admin.com` (modifiable via variable d'env) |
+| **Mot de passe** | `admin123` (modifiable via variable d'env) |
 | **Permissions** | Toutes (8 permissions) |
 
 Ce compte permet de :
@@ -138,16 +168,16 @@ Ce compte permet de :
 
 ### Configuration production (variables d'environnement)
 
-Les secrets sont configurables via variables d'environnement pour la production :
+Les secrets sont configurables via variables d'environnement (voir docker-compose.yml) :
 
 ```bash
 # Clé secrète JWT (obligatoire en production)
 export JWT_SECRET="cle-secrete-256-bits-en-base64"
-
 # Identifiants admin (optionnel, valeurs par défaut sinon)
 export ADMIN_EMAIL="admin@entreprise.com"
 export ADMIN_PASSWORD="mot-de-passe"
 ```
+
 
 | Variable | Description | Valeur par défaut |
 |----------|-------------|-------------------|
@@ -155,53 +185,45 @@ export ADMIN_PASSWORD="mot-de-passe"
 | `ADMIN_EMAIL` | Email du super admin | `admin@admin.com` |
 | `ADMIN_PASSWORD` | Mot de passe du super admin | `admin123` |
 
+Chaque service peut aussi surcharger ses variables d’environnement (DB, ports, etc.) via le docker-compose ou un fichier `.env`.
+
 ---
+
+src/main/java/com/softwarearchi/archi/
+src/main/resources/
 
 ## Structure du projet
 
 ```
-src/main/java/com/softwarearchi/archi/
-├── ArchiApplication.java          # Point d'entrée Spring Boot
-│
-├── config/
-│   ├── SecurityConfig.java        # Configuration Spring Security + filtre JWT
-│   ├── RabbitMQConfig.java        # Exchanges, queues, bindings RabbitMQ
-│   └── DataInitializer.java       # Création des permissions par défaut au démarrage
-│
-├── controllers/
-│   ├── AuthController.java        # Endpoints /api/auth/*
-│   └── AdminController.java       # Endpoints /api/admin/* (protégés)
-│
+├── docker-compose.yml         # Orchestration multi-conteneurs
+├── nginx.conf                 # Reverse proxy Nginx
+├── init.sql                   # Création des bases PostgreSQL
 ├── services/
-│   ├── AuthService.java           # Logique d'authentification et vérification
-│   ├── UserService.java           # Gestion des utilisateurs et mots de passe
-│   └── NotificationService.java   # Consumer RabbitMQ, envoi d'emails
-│
-├── repository/
-│   ├── UserRepository.java        # Accès table users
-│   ├── PermissionRepository.java  # Accès table permissions
-│   ├── VerificationTokenRepository.java  # Accès table verification_tokens
-│   └── JwtTokenRepository.java    # Accès table jwt_tokens (révocation)
-│
-├── models/
-│   ├── User.java                  # Entité JPA utilisateur
-│   ├── Permission.java            # Entité JPA permission
-│   ├── VerificationToken.java     # Entité JPA token de vérification
-│   └── JwtToken.java              # Entité JPA token JWT (stockage en BDD)
-│
-├── events/
-│   └── UserRegisteredEvent.java   # DTO événement inscription
-│
-└── utils/
-    └── JwtUtil.java               # Génération et validation JWT
-
-src/main/resources/
-├── application.properties         # Configuration Spring
-└── static/
-    ├── index.html                 # Interface utilisateur
-    ├── styles.css                 # Styles avec thème glassmorphism
-    └── app.js                     # Logique frontend + animation canvas
+│   ├── service-a/             # Microservice A (Spring Boot, PostgreSQL)
+│   └── service-b/             # Microservice B (Spring Boot, PostgreSQL)
+├── src/
+│   └── main/java/com/softwarearchi/archi/   # Auth-service (Spring Boot)
+│       ├── config/ ...
+│       ├── controllers/ ...
+│       ├── services/ ...
+│       ├── repository/ ...
+│       ├── models/ ...
+│       ├── events/ ...
+│       └── utils/ ...
+│   └── resources/
+│       ├── application.properties
+│       └── static/ (frontend)
+├── postman/                   # Collection Postman
+└── data/                      # Données persistantes (PostgreSQL)
 ```
+
+Chaque service a son propre Dockerfile, application.properties, et base PostgreSQL dédiée.
+
+
+Nginx agit comme reverse proxy :
+- Il route `/api/auth/` vers auth-service (public, pas de JWT requis)
+- Il protège `/a/` et `/b/` : ces routes nécessitent un JWT valide (authentification centralisée)
+- Il permet d’accéder à tous les services via le port 80 (http://localhost)
 
 ---
 
@@ -217,7 +239,7 @@ src/main/resources/
                                                │                   │
                                                ▼                   ▼
                                         ┌─────────────┐     ┌─────────────┐
-                                        │  RabbitMQ   │     │  H2 Database│
+                                        │  RabbitMQ   │     │ PostgreSQL  │
                                         │  (Events)   │     │  (Stockage) │
                                         └──────┬──────┘     └─────────────┘
                                                │
@@ -234,7 +256,7 @@ src/main/resources/
 |--------|----------------|----------|
 | **Controller** | Réception HTTP, validation des entrées, formatage des réponses | `AuthController`, `AdminController` |
 | **Service** | Logique métier, orchestration, règles de gestion | `AuthService`, `UserService`, `NotificationService` |
-| **Repository** | Accès aux données via JPA, requêtes SQL | `UserRepository`, `RoleRepository`, `VerificationTokenRepository` |
+| **Repository** | Accès aux données via JPA, requêtes SQL | `UserRepository`, `PermissionRepository`, `VerificationTokenRepository`, `JwtTokenRepository` |
 | **Config** | Configuration Spring, sécurité, messagerie | `SecurityConfig`, `RabbitMQConfig`, `DataInitializer` |
 
 **Pourquoi cette séparation ?**
@@ -478,12 +500,48 @@ Authorization: Bearer eyJhbG...
 
 ---
 
-## Exemples curl / Postman
+
+## Exemples d’utilisation des microservices A et B
+
+### Service A (exemple)
+
+Endpoint protégé (JWT requis) :
+
+```http
+GET /a/api/hello
+Authorization: Bearer <TOKEN>
+
+→ 200 OK { "message": "Hello from Service A!" }
+```
+
+Exemple curl :
+```bash
+curl -X GET http://localhost/a/api/hello \
+  -H "Authorization: Bearer <TOKEN>"
+```
+
+### Service B (exemple)
+
+Endpoint protégé (JWT requis) :
+
+```http
+GET /b/api/hello
+Authorization: Bearer <TOKEN>
+
+→ 200 OK { "message": "Hello from Service B!" }
+```
+
+Exemple curl :
+```bash
+curl -X GET http://localhost/b/api/hello \
+  -H "Authorization: Bearer <TOKEN>"
+```
 
 ### Inscription
 
+
 ```bash
-curl -X POST http://localhost:8080/api/auth/register \
+curl -X POST http://localhost/api/auth/register \
   -H "Content-Type: application/json" \
   -d '{
     "firstName": "John",
@@ -496,17 +554,19 @@ curl -X POST http://localhost:8080/api/auth/register \
 
 ### Connexion
 
+
 ```bash
-curl -X POST http://localhost:8080/api/auth/login \
+curl -X POST http://localhost/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"email": "john@example.com", "password": "secret123"}'
 ```
 
 ### Connexion admin
 
+
 ```bash
 # Se connecter avec le super admin créé automatiquement
-curl -X POST http://localhost:8080/api/auth/login \
+curl -X POST http://localhost/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"email": "admin@admin.com", "password": "admin123"}'
 
@@ -516,23 +576,26 @@ curl -X POST http://localhost:8080/api/auth/login \
 
 ### Récupérer le profil (avec JWT)
 
+
 ```bash
 # Remplacer <TOKEN> par le JWT reçu lors du login
-curl -X GET http://localhost:8080/api/auth/me \
+curl -X GET http://localhost/api/auth/me \
   -H "Authorization: Bearer <TOKEN>"
 ```
 
 ### Liste des utilisateurs (admin)
 
+
 ```bash
-curl -X GET http://localhost:8080/api/admin/users \
+curl -X GET http://localhost/api/admin/users \
   -H "Authorization: Bearer <TOKEN_ADMIN>"
 ```
 
 ### Ajouter une permission (admin)
 
+
 ```bash
-curl -X POST http://localhost:8080/api/admin/add-permission \
+curl -X POST http://localhost/api/admin/add-permission \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <TOKEN_ADMIN>" \
   -d '{"email": "john@example.com", "permission": "MANAGE_USERS"}'
@@ -540,8 +603,9 @@ curl -X POST http://localhost:8080/api/admin/add-permission \
 
 ### Retirer une permission (admin)
 
+
 ```bash
-curl -X POST http://localhost:8080/api/admin/remove-permission \
+curl -X POST http://localhost/api/admin/remove-permission \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <TOKEN_ADMIN>" \
   -d '{"email": "john@example.com", "permission": "MANAGE_USERS"}'
@@ -549,23 +613,26 @@ curl -X POST http://localhost:8080/api/admin/remove-permission \
 
 ### Supprimer un utilisateur (admin)
 
+
 ```bash
-curl -X DELETE http://localhost:8080/api/admin/users/5 \
+curl -X DELETE http://localhost/api/admin/users/5 \
   -H "Authorization: Bearer <TOKEN_ADMIN>"
 ```
 
 ### Supprimer son propre compte (auto-résiliation)
 
+
 ```bash
-curl -X DELETE http://localhost:8080/api/auth/me \
+curl -X DELETE http://localhost/api/auth/me \
   -H "Authorization: Bearer <TOKEN>"
 ```
 
 ### Vérification email
 
+
 ```bash
 # Récupérer tokenId et t depuis l'email reçu dans MailHog
-curl -X GET "http://localhost:8080/api/auth/verify?tokenId=abc123&t=secretToken"
+curl -X GET "http://localhost/api/auth/verify?tokenId=abc123&t=secretToken"
 ```
 
 ### Collection Postman
@@ -583,63 +650,29 @@ Pour importer dans Postman, créer une collection avec les requêtes suivantes :
 | Add Permission | POST | `{{base_url}}/api/admin/add-permission` | JSON body + Auth header |
 | Remove Permission | POST | `{{base_url}}/api/admin/remove-permission` | JSON body + Auth header |
 
+
 **Variables d'environnement Postman** :
-- `base_url` : `http://localhost:8080`
+- `base_url` : `http://localhost`
 - `token` : JWT reçu après login (à mettre à jour manuellement ou via script)
 
 ---
 
 ## Schéma de base de données
 
+
 ```sql
--- Table des utilisateurs
-users (
-  id            BIGINT PRIMARY KEY AUTO_INCREMENT,
-  email         VARCHAR(255) UNIQUE NOT NULL,
-  password      VARCHAR(255) NOT NULL,  -- Hash BCrypt
-  first_name    VARCHAR(255) NOT NULL,
-  last_name     VARCHAR(255) NOT NULL,
-  phone_number  VARCHAR(255),
-  enabled       BOOLEAN NOT NULL DEFAULT TRUE,
-  verified      BOOLEAN NOT NULL DEFAULT FALSE,
-  created_at    TIMESTAMP,
-  updated_at    TIMESTAMP
-)
-
--- Table des permissions
-permissions (
-  id          BIGINT PRIMARY KEY AUTO_INCREMENT,
-  name        VARCHAR(255) UNIQUE NOT NULL,  -- Ex: ADMIN, MANAGE_USERS
-  description VARCHAR(255)
-)
-
--- Association utilisateurs-permissions (Many-to-Many)
-user_permissions (
-  user_id       BIGINT REFERENCES users(id),
-  permission_id BIGINT REFERENCES permissions(id),
-  PRIMARY KEY (user_id, permission_id)
-)
-
--- Tokens de vérification email
-verification_tokens (
-  id          BIGINT PRIMARY KEY AUTO_INCREMENT,
-  token_id    VARCHAR(255) UNIQUE NOT NULL,  -- ID public
-  token_hash  VARCHAR(255) NOT NULL,         -- Hash BCrypt du secret
-  user_id     BIGINT NOT NULL,
-  expires_at  TIMESTAMP NOT NULL             -- Expiration 15 min
-)
-
--- Tokens JWT stockés pour révocation
-jwt_tokens (
-  id          BIGINT PRIMARY KEY AUTO_INCREMENT,
-  token       VARCHAR(512) UNIQUE NOT NULL,  -- Le JWT complet
-  email       VARCHAR(255) NOT NULL,
-  user_id     BIGINT NOT NULL,
-  created_at  TIMESTAMP NOT NULL,
-  expires_at  TIMESTAMP NOT NULL,
-  revoked     BOOLEAN NOT NULL DEFAULT FALSE -- True si logout effectué
-)
+-- Création des bases (voir init.sql)
+CREATE DATABASE auth_db;
+CREATE DATABASE project_db;
+CREATE DATABASE task_db;
 ```
+
+Chaque microservice utilise sa propre base PostgreSQL :
+- **auth-service** : auth_db
+- **service-a** : project_db
+- **service-b** : task_db
+
+Les schémas de tables sont gérés par JPA/Hibernate (ddl-auto=update).
 
 ---
 
