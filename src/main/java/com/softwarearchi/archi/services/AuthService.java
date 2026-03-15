@@ -268,7 +268,7 @@ public class AuthService {
                 .orElseThrow(() -> new RuntimeException("Invalid token"));
 
         if (token.getExpiresAt().isBefore(LocalDateTime.now())) {
-            throw new RuntimeException("Token expired");
+            throw new RuntimeException("Token expired"); 
         }
 
         if (!passwordEncoder.matches(tokenClear, token.getTokenHash())) {

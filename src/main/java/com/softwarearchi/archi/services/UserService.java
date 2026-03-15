@@ -106,6 +106,8 @@ public class UserService implements UserDetailsService {
                 .orElseThrow(() -> new RuntimeException("Permission not found: " + permissionName));
 
         user.getPermissions().add(permission);
+
+        
         userRepository.save(user);
 
         logger.info("[SERVICE-USER] Permission {} added to user {}", permissionName, email);
