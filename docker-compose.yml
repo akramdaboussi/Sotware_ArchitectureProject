@@ -1,4 +1,18 @@
+
 services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: postgres
+    environment:
+      POSTGRES_DB: archidb
+      POSTGRES_USER: archiuser
+      POSTGRES_PASSWORD: archipass
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - archi-net
 
   # ── Infrastructure ──────────────────────────────────────────────────────
   rabbitmq:
@@ -33,9 +47,13 @@ services:
     environment:
       - SPRING_RABBITMQ_HOST=rabbitmq
       - SPRING_MAIL_HOST=mailhog
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/archidb
+      - SPRING_DATASOURCE_USERNAME=archiuser
+      - SPRING_DATASOURCE_PASSWORD=archipass
     depends_on:
       - rabbitmq
       - mailhog
+      - postgres
     networks:
       - archi-net
 
@@ -78,4 +96,5 @@ services:
 
 networks:
   archi-net:
-    driver: bridge
+volumes:
+  pgdata:
