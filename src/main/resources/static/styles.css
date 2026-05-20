@@ -220,6 +220,8 @@ input:focus, textarea:focus, select:focus {
 .btn-ghost:hover { background: rgba(255,255,255,0.05); }
 .btn-text { background: transparent; color: var(--text-muted); padding: 0.5rem; }
 .btn-text:hover { color: var(--text-main); }
+.btn-icon { background: transparent; border: none; color: var(--text-muted); cursor: pointer; transition: color 0.2s; font-size: 0.9rem; }
+.btn-icon:hover { color: var(--danger); }
 
 /* Main Content */
 .main-content {

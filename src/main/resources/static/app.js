@@ -303,8 +303,18 @@ function setupEventListeners() {
     ui.btnDeleteProject.addEventListener('click', async () => {
         if (!state.currentProject) return;
         if(confirm(`Are you sure you want to delete "${state.currentProject.name}"?`)) {
-            // Note: service-a doesn't have a DELETE endpoint in the spec, but we'd call it here.
-            alert('Delete action simulated (Requires DELETE /a/api/projects/{id} implemented on Backend)');
+            try {
+                const res = await fetch(`/a/api/projects/${state.currentProject.id}`, {
+                    method: 'DELETE',
+                    headers: getHeaders()
+                });
+                if (res.ok) {
+                    state.projects = state.projects.filter(p => p.id !== state.currentProject.id);
+                    selectProject(null);
+                } else {
+                    alert('Failed to delete project. You might not have permission.');
+                }
+            } catch(e) { console.error("Could not delete project", e); }
         }
     });
 }
@@ -342,10 +352,14 @@ function renderKanban() {
     state.tasks.forEach(task => {
         counts[task.status] = (counts[task.status] || 0) + 1;
         
+        const isAdmin = state.claims?.permissions?.includes('ADMIN') || state.claims?.permissions?.includes('MANAGE_USERS');
         const card = document.createElement('div');
         card.className = 'task-card';
         card.innerHTML = `
-            <h4>${task.title}</h4>
+            <div style="display: flex; justify-content: space-between; align-items: start;">
+                <h4>${task.title}</h4>
+                <button class="btn-icon task-delete-btn hidden" data-id="${task.id}"><i class="fa-solid fa-trash"></i></button>
+            </div>
             ${task.description ? `<p>${task.description}</p>` : ''}
             <div class="task-footer">
                 <span><i class="fa-regular fa-clock"></i> ${new Date(task.createdAt || Date.now()).toLocaleDateString()}</span>
@@ -356,6 +370,24 @@ function renderKanban() {
         // Setup dropdown change listener to move tasks
         const select = card.querySelector('select');
         select.addEventListener('change', (e) => updateTaskStatus(task.id, e.target.value));
+        
+        // Setup delete button
+        const delBtn = card.querySelector('.task-delete-btn');
+        if (isAdmin) delBtn.classList.remove('hidden');
+        delBtn.addEventListener('click', async () => {
+            if(confirm('Are you sure you want to delete this task?')) {
+                try {
+                    const res = await fetch(`/b/api/tasks/${task.id}`, {
+                        method: 'DELETE',
+                        headers: getHeaders()
+                    });
+                    if (res.ok) {
+                        state.tasks = state.tasks.filter(t => t.id !== task.id);
+                        renderKanban();
+                    }
+                } catch(e) { console.error("Could not delete task", e); }
+            }
+        });
         
         if (task.status === 'TODO') ui.listTodo.appendChild(card);
         else if (task.status === 'IN_PROGRESS') ui.listInProgress.appendChild(card);

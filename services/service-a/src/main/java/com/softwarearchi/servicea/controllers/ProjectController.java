@@ -35,8 +35,12 @@ public class ProjectController {
             // we can just decode the payload directly.
             String[] splitToken = token.split("\\.");
             if (splitToken.length < 2) return null;
-            
-            String payload = new String(Base64.getUrlDecoder().decode(splitToken[1]));
+            String payloadRaw = splitToken[1];
+            int padLength = 4 - (payloadRaw.length() % 4);
+            if (padLength > 0 && padLength < 4) {
+                payloadRaw += "=".repeat(padLength);
+            }
+            String payload = new String(Base64.getUrlDecoder().decode(payloadRaw));
             JsonNode claims = objectMapper.readTree(payload);
             
             if (claims.has("userId")) {
@@ -94,5 +98,33 @@ public class ProjectController {
         Project savedProject = projectRepository.save(project);
         logger.info("Created new project: {} for user {}", savedProject.getId(), userId);
         return ResponseEntity.status(201).body(savedProject);
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteProject(
+            @PathVariable Long id, 
+            @RequestHeader("Authorization") String authHeader) {
+        Long userId = extractUserIdFromToken(authHeader);
+        if (userId == null) {
+            return ResponseEntity.status(401).build();
+        }
+        
+        Optional<Project> projectOpt = projectRepository.findById(id);
+        if (projectOpt.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        
+        Project project = projectOpt.get();
+        // Check if the user is the owner (or we could rely on Nginx/Auth to restrict this to ADMIN)
+        // We will allow the owner to delete it
+        if (!project.getOwnerId().equals(userId)) {
+            // Note: If you want only ADMIN roles to delete, you'd need the permissions array from claims
+            // Here we restrict to the owner of the project
+            return ResponseEntity.status(403).build();
+        }
+        
+        projectRepository.delete(project);
+        logger.info("Deleted project: {}", id);
+        return ResponseEntity.ok().build();
     }
 }

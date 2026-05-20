@@ -34,8 +34,12 @@ public class TaskController {
         try {
             String[] splitToken = token.split("\\.");
             if (splitToken.length < 2) return null;
-            
-            String payload = new String(Base64.getUrlDecoder().decode(splitToken[1]));
+            String payloadRaw = splitToken[1];
+            int padLength = 4 - (payloadRaw.length() % 4);
+            if (padLength > 0 && padLength < 4) {
+                payloadRaw += "=".repeat(padLength);
+            }
+            String payload = new String(Base64.getUrlDecoder().decode(payloadRaw));
             return objectMapper.readTree(payload);
         } catch (Exception e) {
             logger.error("Failed to parse JWT payload", e);
